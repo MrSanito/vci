@@ -2,15 +2,15 @@ import React from "react";
 
 const Navbar = () => {
   return (
-    <div className="drawer drawer-start">
+    <div className="drawer drawer-start z-50">
       {/* TOGGLE */}
       <input id="mobile-drawer" type="checkbox" className="drawer-toggle" />
 
       <div className="drawer-content flex flex-col">
-        <div className="navbar bg-primary/5 shadow-sm px-6">
+        <div className="navbar glass-panel text-white px-6 sticky top-0 z-50 transition-all duration-300">
           {/* LEFT — INSTITUTE NAME */}
           <div className="navbar-start">
-            <h3 className="text-lg font-bold whitespace-nowrap">
+            <h3 className="text-xl font-extrabold whitespace-nowrap tracking-wide bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Vishal Computer Institute
             </h3>
           </div>
@@ -18,24 +18,24 @@ const Navbar = () => {
           {/* RIGHT */}
           <div className="navbar-end">
             {/* DESKTOP MENU */}
-            <ul className="menu menu-horizontal px-1 gap-2 text-sm font-medium hidden lg:flex">
+            <ul className="menu menu-horizontal px-1 gap-4 text-sm font-medium hidden lg:flex items-center">
               <li>
-                <a>Home</a>
+                <a className="hover:text-blue-400 transition-colors duration-300">Home</a>
               </li>
               <li>
-                <a>Notes</a>
+                <a className="hover:text-blue-400 transition-colors duration-300">Notes</a>
               </li>
               <li>
-                <a>YouTube</a>
+                <a className="hover:text-blue-400 transition-colors duration-300">YouTube</a>
               </li>
               <li>
-                <a>Online Test</a>
+                <a className="hover:text-blue-400 transition-colors duration-300">Online Test</a>
               </li>
               <li>
-                <a>About Us</a>
+                <a className="hover:text-blue-400 transition-colors duration-300">About Us</a>
               </li>
               <li>
-                <a className="btn btn-sm btn-primary text-white ml-2">
+                <a className="btn btn-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none shadow-lg hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 ml-2">
                   Admin Login
                 </a>
               </li>
@@ -44,37 +44,37 @@ const Navbar = () => {
             {/* HAMBURGER — MOBILE ONLY */}
             <label
               htmlFor="mobile-drawer"
-              className="btn btn-ghost text-xl lg:hidden"
+              className="btn btn-ghost btn-circle text-white lg:hidden"
             >
-              ☰
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
             </label>
           </div>
         </div>
       </div>
 
       {/* SIDEBAR (RIGHT SIDE ON MOBILE) */}
-      <div className="drawer-side  z-40">
-        <label htmlFor="mobile-drawer" className="drawer-overlay"></label>
+      <div className="drawer-side z-50">
+        <label htmlFor="mobile-drawer" className="drawer-overlay backdrop-blur-sm"></label>
 
-        <ul className="menu p-4 w-64 min-h-full bg-base-100 text-base-content space-y-2">
-          <li className="text-lg font-bold mb-2">Menu</li>
+        <ul className="menu p-4 w-72 min-h-full bg-slate-900/95 backdrop-blur-xl text-white space-y-4 shadow-2xl border-r border-white/10">
+          <li className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Menu</li>
           <li>
-            <a>Home</a>
+            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Home</a>
           </li>
           <li>
-            <a>Notes</a>
+            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Notes</a>
           </li>
           <li>
-            <a>YouTube</a>
+            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">YouTube</a>
           </li>
           <li>
-            <a>Online Test</a>
+            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Online Test</a>
           </li>
           <li>
-            <a>About Us</a>
+            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">About Us</a>
           </li>
           <li>
-            <a className="btn btn-primary text-white mt-2">Admin Login</a>
+            <a className="btn bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none mt-4 shadow-lg w-full">Admin Login</a>
           </li>
         </ul>
       </div>

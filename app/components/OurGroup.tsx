@@ -58,21 +58,28 @@ const employeeData = [
 
 const OurGroup = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-4 py-14 text-white">
-      <h3 className="text-3xl font-bold text-center mb-12 tracking-wide">
-        Meet Our Team
-      </h3>
+    <div className="min-h-screen py-24 px-6 relative">
+      {/* Subtle Grid Background from CSS? Or just clean dark */}
+      
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+             <span className="text-blue-400 text-sm font-bold tracking-widest uppercase mb-2 block">Our Team</span>
+            <h3 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-xl">
+                Meet the <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 text-glow">Visionaries</span>
+            </h3>
+        </div>
 
-      {/* 2 cols on phone → 4 rows of 2 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
-        {employeeData.map((employee) => (
-          <OurGroupCard
-            key={employee.id}
-            name={employee.name}
-            detail={employee.detail}
-            avatar={employee.avatar}
-          />
-        ))}
+        {/* 2 cols on phone → 4 rows of 2 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {employeeData.map((employee) => (
+            <OurGroupCard
+                key={employee.id}
+                name={employee.name}
+                detail={employee.detail}
+                avatar={employee.avatar}
+            />
+            ))}
+        </div>
       </div>
     </div>
   );
