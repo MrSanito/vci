@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import Section1 from "./components/Section1";
 import OurGroup from "./components/OurGroup";
+import ContactUs from "./components/ContactUs";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
     <Hero/>
     <Section1/>
     <OurGroup/>
+    <ContactUs/>
 
     
     </>
