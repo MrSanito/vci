@@ -2,9 +2,11 @@ import { getExamAnalytics } from "@/app/actions/examAnalyticsActions";
 import { getStudents } from "@/app/actions/studentActions";
 import { redirect } from "next/navigation";
 import AssignExamForm from "../../../components/admin/AssignExamForm";
+import DeleteExamButton from "../../../components/admin/DeleteExamButton";
 
-export default async function ExamDetailsPage({ params }: { params: { id: string } }) {
-  const analytics = await getExamAnalytics(params.id);
+export default async function ExamDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const analytics = await getExamAnalytics(resolvedParams.id);
   
   if (!analytics || !analytics.exam) {
     redirect('/admin/exams');
@@ -17,9 +19,17 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
     <div className="min-h-screen pt-24 pb-12 px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">{analytics.exam.title}</h1>
-          <p className="text-slate-400">{analytics.exam.description}</p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">{analytics.exam.title}</h1>
+            <p className="text-slate-400">{analytics.exam.description}</p>
+          </div>
+          <div className="flex gap-3">
+            <a href={`/exam/${analytics.exam._id}`} className="btn btn-outline btn-secondary">
+              ▶ Play / Preview
+            </a>
+            <DeleteExamButton examId={analytics.exam._id.toString()} examTitle={analytics.exam.title} />
+          </div>
         </div>
 
         {/* Stats Overview */}
@@ -83,7 +93,7 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
                 </tr>
               </thead>
               <tbody>
-                {analytics.exam.assignedTo.map((studentId: string) => {
+                {analytics.assignedStudentIds.map((studentId: string) => {
                   const student = studentMap.get(studentId) as any;
                   const result = analytics.results.find((r: any) => r.studentId === studentId);
                   const attempt = analytics.attempts.find((a: any) => a.studentId === studentId);
@@ -131,7 +141,7 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
         {/* Assign Students */}
         <div className="mb-8">
           <AssignExamForm 
-            examId={params.id} 
+            examId={resolvedParams.id} 
             students={students}
             currentlyAssigned={analytics.exam.assignedTo || []}
           />

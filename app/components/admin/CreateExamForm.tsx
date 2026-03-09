@@ -18,7 +18,15 @@ interface Section {
   questions: Question[];
 }
 
-export default function CreateExamForm({ adminId }: { adminId: string }) {
+export default function CreateExamForm({ 
+  adminId, 
+  courses = [], 
+  students = [] 
+}: { 
+  adminId: string, 
+  courses?: any[], 
+  students?: any[] 
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -31,6 +39,11 @@ export default function CreateExamForm({ adminId }: { adminId: string }) {
   const [instructions, setInstructions] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Assignment
+  const [assignmentType, setAssignmentType] = useState<'all' | 'course' | 'manual'>('all');
+  const [assignedCourses, setAssignedCourses] = useState<string[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string[]>([]);
   
   // Sections
   const [sections, setSections] = useState<Section[]>([
@@ -90,7 +103,10 @@ export default function CreateExamForm({ adminId }: { adminId: string }) {
       sections,
       totalMarks,
       passingMarks,
-      assignedTo: [],
+      assingedTo: assignedTo, // mapped to assignedTo later but let's keep it clean
+      assignedTo: assignedTo,
+      assignedCourses,
+      assignmentType,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       instructions,
@@ -180,6 +196,78 @@ export default function CreateExamForm({ adminId }: { adminId: string }) {
                 className="textarea textarea-bordered w-full bg-slate-800/50 border-white/10 text-white"
                 rows={3}
               />
+            </div>
+
+            <div className="md:col-span-2 mt-4 space-y-4">
+              <h4 className="text-md font-semibold text-white">Student Assignment</h4>
+              
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" className="radio radio-primary" name="assignmentType" 
+                    checked={assignmentType === 'all'} onChange={() => setAssignmentType('all')} />
+                  <span className="text-white">All Students</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" className="radio radio-primary" name="assignmentType" 
+                    checked={assignmentType === 'course'} onChange={() => setAssignmentType('course')} />
+                  <span className="text-white">By Course</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" className="radio radio-primary" name="assignmentType" 
+                    checked={assignmentType === 'manual'} onChange={() => setAssignmentType('manual')} />
+                  <span className="text-white">Manual Selection</span>
+                </label>
+              </div>
+
+              {assignmentType === 'course' && (
+                <div className="space-y-2 p-4 bg-slate-800/30 rounded-lg border border-white/5">
+                  <label className="block text-sm text-slate-400 mb-2">Select Courses</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {courses.map(course => (
+                      <label key={course} className="flex items-center gap-2 p-2 bg-slate-700/30 rounded cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="checkbox checkbox-sm checkbox-primary" 
+                          checked={assignedCourses.includes(course)}
+                          onChange={(e) => {
+                            if (e.target.checked) setAssignedCourses([...assignedCourses, course]);
+                            else setAssignedCourses(assignedCourses.filter(c => c !== course));
+                          }}
+                        />
+                        <span className="text-sm text-white">{course}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {courses.length === 0 && <p className="text-sm text-slate-500">No courses available.</p>}
+                </div>
+              )}
+
+              {assignmentType === 'manual' && (
+                <div className="space-y-2 p-4 bg-slate-800/30 rounded-lg border border-white/5">
+                  <label className="block text-sm text-slate-400 mb-2">Select Students</label>
+                  <div className="max-h-60 overflow-y-auto grid md:grid-cols-2 gap-2 pr-2">
+                    {students.map((student: any) => (
+                      <label key={student.clerkId || student._id} className="flex items-start gap-2 p-2 bg-slate-700/30 rounded cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="checkbox checkbox-sm checkbox-primary mt-1" 
+                          checked={assignedTo.includes(student.clerkId || student._id)}
+                          onChange={(e) => {
+                            const id = student.clerkId || student._id;
+                            if (e.target.checked) setAssignedTo([...assignedTo, id]);
+                            else setAssignedTo(assignedTo.filter(s => s !== id));
+                          }}
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm text-white font-medium">{student.name}</span>
+                          <span className="text-xs text-slate-400">{student.email} • {student.course}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  {students.length === 0 && <p className="text-sm text-slate-500">No students available.</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>

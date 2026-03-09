@@ -48,6 +48,8 @@ export interface IExam extends Document {
   sections: ISection[];
   totalMarks: number;
   passingMarks: number;
+  assignmentType: 'manual' | 'course' | 'all';
+  assignedCourses: string[];
   assignedTo: string[];
   startDate: Date;
   endDate: Date;
@@ -66,6 +68,8 @@ const ExamSchema: Schema = new Schema({
   sections: [SectionSchema],
   totalMarks: { type: Number, required: true },
   passingMarks: { type: Number, required: true },
+  assignmentType: { type: String, enum: ['manual', 'course', 'all'], default: 'all' },
+  assignedCourses: [String],
   assignedTo: [String],
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },

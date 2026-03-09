@@ -42,6 +42,9 @@ export interface IExamAttempt extends Document {
   submittedAt?: Date;
   autoSubmitted: boolean;
   autoSubmitReason?: string;
+  isPreview: boolean;
+  activeSessionId?: string;
+  examEndTime?: Date;
 }
 
 const ExamAttemptSchema: Schema = new Schema({
@@ -66,7 +69,10 @@ const ExamAttemptSchema: Schema = new Schema({
   submitted: { type: Boolean, default: false },
   submittedAt: Date,
   autoSubmitted: { type: Boolean, default: false },
-  autoSubmitReason: String
+  autoSubmitReason: { type: String },
+  isPreview: { type: Boolean, default: false },
+  activeSessionId: { type: String },
+  examEndTime: { type: Date }
 }, {
   timestamps: true
 });

@@ -7,16 +7,19 @@ import ExamResult from '../models/ExamResult';
 import Exam from '../models/Exam';
 
 export async function submitExam(attemptId: string) {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   if (!userId) {
     return { success: false, message: 'Unauthorized' };
   }
+
+  const role = (sessionClaims as any)?.metadata?.role;
+  const isAdmin = role === 'admin';
 
   try {
     await connectToDatabase();
     
     const attempt = await ExamAttempt.findById(attemptId);
-    if (!attempt || attempt.studentId !== userId) {
+    if (!attempt || (attempt.studentId !== userId && !isAdmin)) {
       return { success: false, message: 'Invalid attempt' };
     }
 
@@ -27,6 +30,24 @@ export async function submitExam(attemptId: string) {
     const exam = await Exam.findById(attempt.examId);
     if (!exam) {
       return { success: false, message: 'Exam not found' };
+    }
+
+    // Server-Side Time Validation (Anti-tampering)
+    // If the submission happens after examEndTime + 60s grace period, 
+    // we consider the latest questions invalid (they froze the timer or intercepted the UI)
+    const now = new Date();
+    let isLateSubmission = false;
+    
+    if (attempt.examEndTime) {
+       const endTimeWithGrace = new Date(attempt.examEndTime.getTime() + 60000); // +60 seconds
+       if (now > endTimeWithGrace) {
+           console.log(`[Submit] Warning: Late submission detected for attempt ${attemptId}`);
+           isLateSubmission = true;
+           // We will still grade it, but flag it, or potentially we could reject answers saved *after* examEndTime.
+           // For now, we will mark it strictly as autoSubmitted due to time out.
+           attempt.autoSubmitted = true;
+           attempt.autoSubmitReason = 'timeTampering_lateSubmission';
+       }
     }
 
     // Calculate score
@@ -149,13 +170,16 @@ export async function submitExam(attemptId: string) {
 }
 
 export async function getExamResult(resultId: string) {
-  const { userId } = await auth();
+  const { userId, sessionClaims } = await auth();
   if (!userId) return null;
+
+  const role = (sessionClaims as any)?.metadata?.role;
+  const isAdmin = role === 'admin';
 
   await connectToDatabase();
   const result = await ExamResult.findById(resultId).lean();
   
-  if (!result || result.studentId !== userId) return null;
+  if (!result || (result.studentId !== userId && !isAdmin)) return null;
   
   return JSON.parse(JSON.stringify(result));
 }

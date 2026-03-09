@@ -1,5 +1,6 @@
 import { getExams } from "../../actions/examActions";
 import Link from "next/link";
+import DeleteExamButton from "../../components/admin/DeleteExamButton";
 
 export default async function ExamsPage() {
   const exams = await getExams();
@@ -43,13 +44,20 @@ export default async function ExamsPage() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <Link 
                       href={`/admin/exams/${exam._id}`}
                       className="btn btn-sm btn-primary"
                     >
                       View Details
                     </Link>
+                    <Link 
+                      href={`/exam/${exam._id}`}
+                      className="btn btn-sm btn-outline btn-secondary"
+                    >
+                      ▶ Play / Preview
+                    </Link>
+                    <DeleteExamButton examId={exam._id.toString()} examTitle={exam.title} />
                   </div>
                 </div>
               </div>

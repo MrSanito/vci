@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { updateQuestionState, updateTimer, recordTabSwitch } from '@/app/actions/examAttemptActions';
 import { useRouter } from 'next/navigation';
+import ExamTimer from './ExamTimer';
 
 interface Question {
   questionText: string;
@@ -38,16 +39,29 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionStates, setQuestionStates] = useState<Map<number, QuestionState>>(new Map());
   
-  // Timer
-  const [timeRemaining, setTimeRemaining] = useState(initialAttempt.timeRemaining || exam.totalDuration * 60);
-  const [warningShown30, setWarningShown30] = useState(false);
-  const [warningShown5, setWarningShown5] = useState(false);
+  const [sessionId] = useState(initialAttempt.activeSessionId);
+  const [isTimeExpired, setIsTimeExpired] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [offlineSyncPending, setOfflineSyncPending] = useState(false);
   
   // Proctoring
   const [tabSwitchCount, setTabSwitchCount] = useState(initialAttempt.tabSwitchCount || 0);
   const [showWarning, setShowWarning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof window !== 'undefined' ? !navigator.onLine : false);
+
+  // Track network connectivity for offline banner
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setIsOffline(false);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
   // Initialize questions
   useEffect(() => {
@@ -59,7 +73,7 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
     });
     setAllQuestions(questions);
 
-    // Initialize question states
+    // Initialize question states (from server, fallback to local storage, fallback to empty)
     const states = new Map<number, QuestionState>();
     questions.forEach((_, idx) => {
       states.set(idx, {
@@ -69,94 +83,206 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
         visitCount: 0
       });
     });
-    setQuestionStates(states);
-  }, [exam]);
-
-  // Timer countdown
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeRemaining((prev: number) => {
-        const newTime = prev - 1;
-        
-        // Warnings
-        if (newTime === 30 * 60 && !warningShown30) {
-          alert('⏰ 30 minutes remaining!');
-          setWarningShown30(true);
-        }
-        if (newTime === 5 * 60 && !warningShown5) {
-          alert('⚠️ Only 5 minutes left!');
-          setWarningShown5(true);
-        }
-        
-        // Auto-submit at 0
-        if (newTime <= 0) {
-          handleAutoSubmit('timeExpired');
-          return 0;
-        }
-        
-        // Save to server every 10 seconds
-        if (newTime % 10 === 0) {
-          updateTimer(attemptId, newTime);
-        }
-        
-        return newTime;
+    
+    // Attempt hydration from server or local storage
+    if (initialAttempt && initialAttempt.questionStates) {
+      Object.keys(initialAttempt.questionStates).forEach((key) => {
+         const numKey = parseInt(key);
+         if (!isNaN(numKey)) {
+             states.set(numKey, initialAttempt.questionStates[key]);
+         }
       });
-    }, 1000);
+    } else {
+       // Attempt offline recovery from localStorage if server state is blank
+       try {
+         const localSaved = localStorage.getItem(`exam_attempt_${attemptId}`);
+         if (localSaved) {
+            const parsed = JSON.parse(localSaved);
+            Object.keys(parsed).forEach((key) => {
+               states.set(parseInt(key), parsed[key]);
+            });
+         }
+       } catch (e) {
+         console.warn("Could not read local attempt backup", e);
+       }
+    }
+    
+    setQuestionStates(states);
+  }, [exam, attemptId, initialAttempt]);
 
-    return () => clearInterval(interval);
-  }, [attemptId, warningShown30, warningShown5]);
+  // Offline Sync Recovery
+  useEffect(() => {
+    const handleOnline = async () => {
+       console.log("Network restored! Syncing offline saved answers...");
+       
+       if (offlineSyncPending) {
+          // If they were stuck on the submission screen, immediately push the submit execution
+          await executeSubmission();
+          return;
+       }
+       
+       try {
+         const localSaved = localStorage.getItem(`exam_attempt_${attemptId}`);
+         if (localSaved) {
+            const parsed = JSON.parse(localSaved);
+            // In a production app, we would batch this. For now we loop.
+            for (const [key, val] of Object.entries(parsed)) {
+                await updateQuestionState(attemptId, parseInt(key), val);
+            }
+         }
+       } catch (e) {
+         console.error("Sync failed", e);
+       }
+    };
+    
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [attemptId]);
+
+  const handleTimeExpired = useCallback(() => {
+    setIsTimeExpired(true);
+    handleAutoSubmit('timeExpired');
+  }, []);
 
   // Fullscreen enforcement
   useEffect(() => {
-    const enterFullscreen = async () => {
-      try {
-        await document.documentElement.requestFullscreen();
-        setIsFullscreen(true);
-      } catch (err) {
-        console.error('Fullscreen error:', err);
-      }
-    };
-
-    enterFullscreen();
-
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsFullscreen(false);
-        alert('⚠️ Please stay in fullscreen mode!');
-        enterFullscreen();
-      }
+      const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement || (document as any).msFullscreenElement);
+      setIsFullscreen(isFull);
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
   }, []);
 
-  // Tab switch detection
+  const handleEnterFullscreen = async () => {
+    try {
+      const docEl = document.documentElement as any;
+      if (docEl.requestFullscreen) {
+        await docEl.requestFullscreen();
+      } else if (docEl.webkitRequestFullscreen) {
+        await docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        await docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        await docEl.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } catch (err) {
+      console.error('Fullscreen error:', err);
+      // In development or iframes, fullscreen might be blocked by browser policies.
+      // We will allow the user to proceed anyway to avoid being soft-locked.
+      setIsFullscreen(true);
+    }
+  };
+
+  // Tab switch & Dual Monitor detection
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        const result = await recordTabSwitch(attemptId);
-        if (result.success) {
-          setTabSwitchCount(result.tabSwitchCount || 0);
-          setShowWarning(true);
-          
-          if (result.autoSubmitted) {
-            alert('Exam auto-submitted due to excessive tab switching!');
-            router.push(`/results/${attemptId}`);
-          }
+    let focusTimeout: NodeJS.Timeout;
+
+    const handleViolation = async (reason: string) => {
+      console.log(`[Proctoring] Violation detected: ${reason}`);
+      const result = await recordTabSwitch(attemptId);
+      if (result.success) {
+        setTabSwitchCount(result.tabSwitchCount || 0);
+        setShowWarning(true);
+        
+        if (result.autoSubmitted) {
+          alert('Exam auto-submitted due to excessive tab switching or focus loss!');
+          router.push(`/results/${attemptId}`);
         }
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleViolation('document_hidden');
+      }
+    };
+
+    const handleBlur = () => {
+      // In some browsers, clicking an iframe/alert fires blur. We use a small timeout to verify 
+      // they actually left the window (e.g., clicked a second monitor).
+      focusTimeout = setTimeout(() => {
+        if (!document.hasFocus()) {
+          handleViolation('window_blur');
+        }
+      }, 500);
+    };
+
+    const handleFocus = () => {
+      clearTimeout(focusTimeout);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      clearTimeout(focusTimeout);
+    };
   }, [attemptId, router]);
 
-  // Disable right-click
+  // Restrict Keyboard Shortcuts & Context Menu
   useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      // Optional: alert('Right-click is restricted during exams.');
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F12
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+      
+      // Ctrl/Cmd shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        const forbiddenKeys = ['c', 'v', 'p', 'i', 'u', 's', 'r']; 
+        // c=copy, v=paste, p=print, i=inspect, u=view source, s=save, r=reload
+        if (forbiddenKeys.includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+        
+        // Block Ctrl+Shift+I / J / C (DevTools alternatives)
+        if (e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+          e.preventDefault();
+        }
+      }
+      
+      // Block Alt+Tab explicitly if browser allows intercepting (mostly impossible, but we try)
+      if (e.altKey && e.key === 'Tab') {
+        e.preventDefault();
+      }
+    };
+
+    // Global drag/drop prevention
+    const handleDragStart = (e: DragEvent) => e.preventDefault();
+    const handleDrop = (e: DragEvent) => e.preventDefault();
+
     document.addEventListener('contextmenu', handleContextMenu);
-    return () => document.removeEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('drop', handleDrop);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('drop', handleDrop);
+    };
   }, []);
 
   // Visit question (mark as visited)
@@ -176,10 +302,24 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
         timeSpent: 0,
         visitCount: 0
       };
-      newMap.set(qIndex, { ...current, ...updates });
+      
+      const newState = { ...current, ...updates };
+      newMap.set(qIndex, newState);
+      
+      // Save locally to localStorage FIRST (Offline Resilience)
+      try {
+        const localBackup = localStorage.getItem(`exam_attempt_${attemptId}`);
+        const parsedBackup = localBackup ? JSON.parse(localBackup) : {};
+        parsedBackup[qIndex] = newState;
+        localStorage.setItem(`exam_attempt_${attemptId}`, JSON.stringify(parsedBackup));
+      } catch (e) {
+        console.warn("Failed caching to local storage", e);
+      }
       
       // Save to server
-      updateQuestionState(attemptId, qIndex, { ...current, ...updates });
+      updateQuestionState(attemptId, qIndex, newState).catch(err => {
+         console.warn("Server save failed, answer relies strictly on local storage", err);
+      });
       
       return newMap;
     });
@@ -226,24 +366,37 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
     }
   };
 
-  const handleAutoSubmit = (reason: string) => {
-    // TODO: Calculate score and submit
-    router.push(`/results/${attemptId}`);
-  };
-
   const handleSubmitClick = () => {
     setShowSubmitModal(true);
   };
 
-  const handleConfirmSubmit = async () => {
-    const { submitExam } = await import('@/app/actions/examResultActions');
-    const result = await submitExam(attemptId);
-    if (result.success) {
-      router.push(`/results/${result.resultId}`);
-    } else {
-      alert('Error submitting exam: ' + result.message);
+  const executeSubmission = async () => {
+    setIsSubmitting(true);
+    try {
+      const { submitExam } = await import('@/app/actions/examResultActions');
+      const result = await submitExam(attemptId);
+      if (result.success) {
+        // Clear local storage upon successful completion
+        localStorage.removeItem(`exam_attempt_${attemptId}`);
+        router.push(`/results/${result.resultId}`);
+      } else {
+        alert('Error submitting exam: ' + result.message);
+        setIsSubmitting(false);
+      }
+    } catch (e) {
+      console.error("Submission failed due to network error", e);
+      setOfflineSyncPending(true);
+      // We do NOT set isSubmitting(false) here because we want the UI locked while offline
     }
   };
+
+  const handleConfirmSubmit = async () => {
+    await executeSubmission();
+  };
+
+  const handleAutoSubmit = useCallback(async (reason: string) => {
+    await executeSubmission();
+  }, [attemptId, router]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -276,49 +429,105 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
     notVisited: Array.from(questionStates.values()).filter(s => s.status === 'notVisited').length
   };
 
+  if (!isFullscreen) {
+    return (
+      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center z-50 fixed inset-0">
+        <div className="glass-panel p-10 rounded-3xl max-w-xl">
+          <div className="text-6xl mb-6">🖥️</div>
+          <h2 className="text-3xl font-bold text-white mb-4">Fullscreen Required</h2>
+          <p className="text-slate-300 text-lg mb-8">
+            To maintain exam integrity, this assessment must be completed in fullscreen mode. Switching tabs or exiting fullscreen will be recorded as a violation and may result in auto-submission.
+          </p>
+          <button 
+            onClick={handleEnterFullscreen}
+            className="btn btn-primary btn-lg w-full text-lg shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-105 transition-transform"
+          >
+            Enter Fullscreen to Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-slate-900">
+      {/* Offline Banner */}
+      {isOffline && (
+        <div className="bg-yellow-500/20 border-b border-yellow-500/40 px-6 py-2 flex items-center justify-center gap-3 z-20">
+          <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-ping shrink-0" />
+          <p className="text-yellow-300 text-sm font-semibold">
+            📡 Connection lost — <strong>Timer is paused.</strong> Your answers are saved locally and will sync when you reconnect.
+          </p>
+        </div>
+      )}
       {/* Top Bar */}
-      <div className="bg-slate-800 border-b border-white/10 px-6 py-3 flex justify-between items-center">
+      <div className="bg-slate-800 border-b border-white/10 px-6 py-4 flex justify-between items-center shadow-md z-10">
         <div className="flex items-center gap-6">
-          <span className="text-white font-bold">{exam.title}</span>
-          <span className="text-slate-400 text-sm">Section: {currentQuestion.sectionName}</span>
+          <div>
+            <h1 className="text-white font-bold text-xl">{exam.title}</h1>
+            <div className="text-slate-400 text-sm flex gap-4">
+               <span>Course ID: {exam.assignedCourses?.[0] || 'General'}</span>
+               <span>Section: <strong className="text-blue-400">{currentQuestion.sectionName}</strong></span>
+            </div>
+          </div>
         </div>
         
         <div className="flex items-center gap-6">
-          <div className={`text-lg font-mono font-bold ${timeRemaining < 300 ? 'text-red-400' : 'text-green-400'}`}>
-            ⏱️ {formatTime(timeRemaining)}
-          </div>
+          <ExamTimer 
+             attemptId={attemptId}
+             initialAttempt={initialAttempt}
+             examDuration={exam.totalDuration}
+             sessionId={sessionId}
+             onTimeExpired={handleTimeExpired}
+          />
           <button onClick={handleSubmitClick} className="btn btn-error btn-sm">Submit Test</button>
         </div>
       </div>
 
-      {/* Submit Confirmation Modal */}
-      {showSubmitModal && (
+      {/* Submit Confirmation Modal / Loading State */}
+      {(showSubmitModal || isSubmitting) && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-          <div className="bg-slate-800 p-8 rounded-2xl max-w-md">
-            <h3 className="text-2xl font-bold text-white mb-4">Submit Exam?</h3>
-            <div className="space-y-2 mb-6 text-slate-300">
-              <p>✅ Answered: <span className="text-green-400 font-bold">{summary.answered}</span></p>
-              <p>🔖 Marked for Review: <span className="text-purple-400 font-bold">{summary.marked}</span></p>
-              <p>❌ Not Answered: <span className="text-red-400 font-bold">{summary.notAnswered}</span></p>
-              <p>⬜ Not Visited: <span className="text-gray-400 font-bold">{summary.notVisited}</span></p>
-            </div>
-            <p className="text-yellow-400 mb-6">⚠️ You cannot change answers after submission!</p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowSubmitModal(false)}
-                className="btn btn-ghost flex-1"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleConfirmSubmit}
-                className="btn btn-error flex-1"
-              >
-                Confirm Submit
-              </button>
-            </div>
+          <div className="bg-slate-800 p-8 rounded-2xl max-w-md w-full text-center">
+            {isSubmitting ? (
+               offlineSyncPending ? (
+                  <div className="py-8">
+                     <div className="text-4xl mb-4">📡</div>
+                     <h3 className="text-2xl font-bold text-yellow-500 mb-2">Network Disconnected</h3>
+                     <p className="text-slate-300">Your exam is securely saved locally. Waiting for network connection to restore to sync final submission...</p>
+                     <p className="text-red-400 font-bold mt-4 text-sm uppercase tracking-wide">Do not close this window</p>
+                  </div>
+               ) : (
+                  <div className="py-8">
+                     <span className="loading loading-spinner loading-lg text-primary mb-4"></span>
+                     <h3 className="text-xl font-bold text-white">Submitting exam safely...</h3>
+                  </div>
+               )
+            ) : (
+               <>
+                <h3 className="text-2xl font-bold text-white mb-4">Submit Exam?</h3>
+                <div className="space-y-2 mb-6 text-slate-300 text-left">
+                  <p>✅ Answered: <span className="text-green-400 font-bold">{summary.answered}</span></p>
+                  <p>🔖 Marked for Review: <span className="text-purple-400 font-bold">{summary.marked}</span></p>
+                  <p>❌ Not Answered: <span className="text-red-400 font-bold">{summary.notAnswered}</span></p>
+                  <p>⬜ Not Visited: <span className="text-gray-400 font-bold">{summary.notVisited}</span></p>
+                </div>
+                <p className="text-yellow-400 mb-6">⚠️ You cannot change answers after submission!</p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowSubmitModal(false)}
+                    className="btn btn-ghost flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleConfirmSubmit}
+                    className="btn btn-error flex-1"
+                  >
+                    Confirm Submit
+                  </button>
+                </div>
+               </>
+            )}
           </div>
         </div>
       )}
@@ -327,9 +536,9 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
       {showWarning && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
           <div className="bg-slate-800 p-8 rounded-2xl max-w-md">
-            <h3 className="text-2xl font-bold text-red-400 mb-4">⚠️ Warning!</h3>
+            <h3 className="text-2xl font-bold text-red-400 mb-4">⚠️ Proctoring Warning!</h3>
             <p className="text-white mb-4">
-              Tab switching detected! ({tabSwitchCount}/10)
+              Focus loss or Tab switching detected! ({tabSwitchCount}/10)
             </p>
             <p className="text-slate-400 mb-6">
               After 10 warnings, your exam will be auto-submitted.
@@ -347,89 +556,133 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Question Area (70%) */}
-        <div className="flex-[7] p-6 overflow-y-auto">
-          <div className="max-w-3xl">
-            <div className="mb-4">
-              <span className="text-blue-400 font-semibold">Question {currentQuestionIndex + 1}</span>
-              <span className="text-slate-400 ml-2">({currentQuestion.marks} marks, -{currentQuestion.negativeMarks} for wrong)</span>
+        <div className="flex-[7] p-8 overflow-y-auto">
+          <div className="max-w-4xl mx-auto">
+            
+            {/* Question Header */}
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+              <span className="text-xl font-bold text-white">
+                Question {currentQuestionIndex + 1} <span className="text-slate-400 text-lg font-normal">of {allQuestions.length}</span>
+              </span>
+              <span className="badge badge-lg badge-outline text-slate-300">
+                Correct: <span className="text-green-400 ml-1 font-bold">+{currentQuestion.marks}</span> | 
+                Incorrect: <span className="text-red-400 ml-1 font-bold">-{currentQuestion.negativeMarks}</span>
+              </span>
             </div>
 
-            <div className="text-white text-lg mb-6">
-              {currentQuestion.questionText}
+            {/* Question Content */}
+            <div className="bg-slate-800/80 rounded-2xl p-8 border border-white/5 shadow-xl mb-8">
+              <div className="text-white text-xl leading-relaxed mb-8 whitespace-pre-wrap font-medium">
+                {currentQuestion.questionText}
+              </div>
+
+              {/* Options display (just text with A, B, C, D) */}
+              {currentQuestion.questionType !== 'numerical' && (
+                <div className="space-y-4 ml-2">
+                  {currentQuestion.options.map((option, idx) => {
+                    const label = String.fromCharCode(65 + idx); // A, B, C, D
+                    return (
+                      <div key={idx} className="flex gap-4 text-slate-200 text-lg items-start">
+                        <span className="font-bold text-blue-400 shrink-0 w-6">{label}.</span>
+                        <span>{option}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Options */}
+            <div className="divider before:bg-white/5 after:bg-white/5 my-8">Select your answer</div>
+
+            {/* Answer Selection area */}
             {currentQuestion.questionType !== 'numerical' && (
-              <div className="space-y-3">
-                {currentQuestion.options.map((option, idx) => (
-                  <label 
-                    key={idx}
-                    className="flex items-start gap-3 p-4 bg-slate-800/50 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors"
-                  >
-                    <input
-                      type={currentQuestion.questionType === 'single' ? 'radio' : 'checkbox'}
-                      name="answer"
-                      checked={
-                        currentQuestion.questionType === 'single'
-                          ? currentState?.selectedAnswer === idx
-                          : currentState?.selectedAnswer?.includes(idx)
-                      }
-                      onChange={() => {
-                        if (currentQuestion.questionType === 'single') {
-                          handleAnswerSelect(idx);
-                        } else {
-                          const current = currentState?.selectedAnswer || [];
-                          const newAnswer = current.includes(idx)
-                            ? current.filter((i: number) => i !== idx)
-                            : [...current, idx];
-                          handleAnswerSelect(newAnswer);
+              <div className="flex flex-wrap gap-6 mb-12 justify-center">
+                {currentQuestion.options.map((_, idx) => {
+                  const label = String.fromCharCode(65 + idx);
+                  return (
+                    <label 
+                      key={idx}
+                      className={`
+                        flex items-center gap-4 px-8 py-4 rounded-full cursor-pointer
+                        border-2 transition-all duration-300
+                        ${(currentQuestion.questionType === 'single'
+                            ? currentState?.selectedAnswer === idx
+                            : currentState?.selectedAnswer?.includes(idx)) 
+                            ? 'bg-blue-600/20 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)] scale-105' 
+                            : 'bg-slate-800 border-white/10 hover:border-slate-500 hover:bg-slate-700'}
+                      `}
+                    >
+                      <input
+                        type={currentQuestion.questionType === 'single' ? 'radio' : 'checkbox'}
+                        name="answer"
+                        checked={
+                          currentQuestion.questionType === 'single'
+                            ? currentState?.selectedAnswer === idx
+                            : currentState?.selectedAnswer?.includes(idx)
                         }
-                      }}
-                      className="radio radio-primary mt-1"
-                    />
-                    <span className="text-white">{option}</span>
-                  </label>
-                ))}
+                        onChange={() => {
+                          if (currentQuestion.questionType === 'single') {
+                            handleAnswerSelect(idx);
+                          } else {
+                            const current = currentState?.selectedAnswer || [];
+                            const newAnswer = current.includes(idx)
+                              ? current.filter((i: number) => i !== idx)
+                              : [...current, idx];
+                            handleAnswerSelect(newAnswer);
+                          }
+                        }}
+                        className="radio radio-primary radio-md"
+                      />
+                      <span className="text-white font-bold text-xl">{label}</span>
+                    </label>
+                  );
+                })}
               </div>
             )}
 
             {/* Numerical Input */}
             {currentQuestion.questionType === 'numerical' && (
-              <input
-                type="number"
-                value={currentState?.selectedAnswer || ''}
-                onChange={(e) => handleAnswerSelect(Number(e.target.value))}
-                className="input input-bordered w-full max-w-xs bg-slate-800 text-white"
-                placeholder="Enter your answer"
-              />
+              <div className="flex justify-center mb-12">
+                <input
+                  type="number"
+                  value={currentState?.selectedAnswer || ''}
+                  onChange={(e) => handleAnswerSelect(Number(e.target.value))}
+                  className="input input-lg input-bordered w-full max-w-md bg-slate-800 text-white text-center text-xl font-bold"
+                  placeholder="Type your numerical answer here"
+                />
+              </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 mt-8">
-              <button onClick={handleMarkForReview} className="btn btn-outline btn-warning">
-                🔖 Mark for Review
-              </button>
-              <button onClick={handleClearResponse} className="btn btn-outline btn-error">
-                Clear Response
-              </button>
+            <div className="divider before:bg-white/10 after:bg-white/10 my-8"></div>
+
+            {/* Action Buttons & Navigation */}
+            <div className="flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex gap-4 flex-1">
+                <button 
+                  onClick={handlePrevious}
+                  disabled={currentQuestionIndex === 0}
+                  className="btn btn-secondary px-8 text-white text-base"
+                >
+                  ← Previous
+                </button>
+                <button 
+                  onClick={handleNext}
+                  className="btn btn-primary px-8 text-white text-base shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                >
+                  Save & Next →
+                </button>
+              </div>
+              
+              <div className="flex gap-3">
+                <button onClick={handleMarkForReview} className="btn btn-outline btn-warning gap-2">
+                  <span className="text-xl">★</span> Mark for Review
+                </button>
+                <button onClick={handleClearResponse} className="btn btn-ghost text-slate-400 hover:text-white">
+                  Clear Response
+                </button>
+              </div>
             </div>
 
-            {/* Navigation */}
-            <div className="flex gap-3 mt-6">
-              <button 
-                onClick={handlePrevious}
-                disabled={currentQuestionIndex === 0}
-                className="btn btn-primary"
-              >
-                ← Previous
-              </button>
-              <button 
-                onClick={handleNext}
-                className="btn btn-primary flex-1"
-              >
-                Save & Next →
-              </button>
-            </div>
           </div>
         </div>
 

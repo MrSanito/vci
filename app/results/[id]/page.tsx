@@ -3,11 +3,12 @@ import { getExamById } from "@/app/actions/examActions";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
-export default async function ResultPage({ params }: { params: { id: string } }) {
+export default async function ResultPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const user = await currentUser();
   if (!user) redirect('/sign-in');
 
-  const result = await getExamResult(params.id);
+  const result = await getExamResult(resolvedParams.id);
   if (!result) {
     return <div className="min-h-screen flex items-center justify-center">
       <p className="text-red-400">Result not found</p>

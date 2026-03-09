@@ -2,12 +2,14 @@ import { getExamById } from "@/app/actions/examActions";
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import StartTestButton from "../../components/exam/StartTestButton";
 
-export default async function ExamInstructionsPage({ params }: { params: { id: string } }) {
+export default async function ExamInstructionsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
   if (!user) redirect('/sign-in');
 
-  const exam = await getExamById(params.id);
+  const resolvedParams = await params;
+  const exam = await getExamById(resolvedParams.id);
   if (!exam) {
     return <div className="min-h-screen flex items-center justify-center">
       <p className="text-white">Exam not found</p>
@@ -104,26 +106,7 @@ export default async function ExamInstructionsPage({ params }: { params: { id: s
 
         {/* Agreement */}
         <div className="glass-panel p-8 rounded-2xl">
-          <label className="flex items-start gap-3 mb-6 cursor-pointer">
-            <input type="checkbox" className="checkbox checkbox-primary mt-1" id="agree" required />
-            <span className="text-slate-300">
-              I have read and understood all the instructions. I am ready to begin the test.
-            </span>
-          </label>
-
-          <Link 
-            href={`/exam/${exam._id}/test`}
-            className="btn btn-primary btn-lg w-full"
-            onClick={(e) => {
-              const checkbox = document.getElementById('agree') as HTMLInputElement;
-              if (!checkbox?.checked) {
-                e.preventDefault();
-                alert('Please accept the instructions to continue');
-              }
-            }}
-          >
-            🚀 Start Test
-          </Link>
+          <StartTestButton examId={exam._id.toString()} />
         </div>
       </div>
     </div>
