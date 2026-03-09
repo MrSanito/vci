@@ -1,4 +1,12 @@
 import React from "react";
+import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from '@clerk/nextjs'
 
 const Navbar = () => {
   return (
@@ -20,7 +28,7 @@ const Navbar = () => {
             {/* DESKTOP MENU */}
             <ul className="menu menu-horizontal px-1 gap-4 text-sm font-medium hidden lg:flex items-center">
               <li>
-                <a className="hover:text-blue-400 transition-colors duration-300">Home</a>
+                <a href="/" className="hover:text-blue-400 transition-colors duration-300">Home</a>
               </li>
               <li>
                 <a className="hover:text-blue-400 transition-colors duration-300">Notes</a>
@@ -28,19 +36,32 @@ const Navbar = () => {
               <li>
                 <a className="hover:text-blue-400 transition-colors duration-300">YouTube</a>
               </li>
-              <li>
-                <a className="hover:text-blue-400 transition-colors duration-300">Online Test</a>
-              </li>
+              {/* Show Dashboard when logged in */}
+              <SignedIn>
+                <li>
+                  <a href="/dashboard" className="text-blue-400 hover:text-blue-300 font-bold transition-colors duration-300">Dashboard</a>
+                </li>
+              </SignedIn>
               <li>
                 <a className="hover:text-blue-400 transition-colors duration-300">About Us</a>
               </li>
               <li>
-                <a className="btn btn-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none shadow-lg hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 ml-2">
+                <a href="/admin" className="btn btn-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none shadow-lg hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 ml-2">
                   Admin Login
                 </a>
               </li>
+              <li className="ml-2">
+                  <SignedIn>
+                      <UserButton />
+                  </SignedIn>
+                  <SignedOut>
+                      <SignInButton mode="modal">
+                          <button className="btn btn-sm btn-ghost text-white">Sign In</button>
+                      </SignInButton>
+                  </SignedOut>
+              </li>
             </ul>
-
+            
             {/* HAMBURGER — MOBILE ONLY */}
             <label
               htmlFor="mobile-drawer"
@@ -77,6 +98,18 @@ const Navbar = () => {
             <a className="btn bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none mt-4 shadow-lg w-full">Admin Login</a>
           </li>
         </ul>
+         <SignedOut>
+              <SignInButton />
+              <SignUpButton>
+                <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
+                  Sign Up
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            {/* Show the user button when the user is signed in */}
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
       </div>
     </div>
   );
