@@ -1,5 +1,5 @@
-import { getExamById } from "../../../../actions/examActions";
-import { startExamAttempt, getExamAttempt } from "../../../../actions/examAttemptActions";
+import { getExamById } from "@/app/actions/examActions";
+import { startExamAttempt, getExamAttempt } from "@/app/actions/examAttemptActions";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import ExamInterface from "../../../components/exam/ExamInterface";
@@ -15,7 +15,7 @@ export default async function ExamTestPage({ params }: { params: { id: string } 
 
   // Start or resume attempt
   const attemptResult = await startExamAttempt(params.id);
-  if (!attemptResult.success) {
+  if (!attemptResult.success || !attemptResult.attemptId) {
     return <div className="min-h-screen flex items-center justify-center">
       <p className="text-red-400">{attemptResult.message}</p>
     </div>;

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
-import { updateQuestionState, updateTimer, recordTabSwitch } from '../../../actions/examAttemptActions';
+import { updateQuestionState, updateTimer, recordTabSwitch } from '@/app/actions/examAttemptActions';
 import { useRouter } from 'next/navigation';
 
 interface Question {
@@ -75,7 +75,7 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
   // Timer countdown
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeRemaining(prev => {
+      setTimeRemaining((prev: number) => {
         const newTime = prev - 1;
         
         // Warnings
@@ -236,7 +236,7 @@ export default function ExamInterface({ exam, attemptId, initialAttempt }: ExamI
   };
 
   const handleConfirmSubmit = async () => {
-    const { submitExam } = await import('../../../actions/examResultActions');
+    const { submitExam } = await import('@/app/actions/examResultActions');
     const result = await submitExam(attemptId);
     if (result.success) {
       router.push(`/results/${result.resultId}`);

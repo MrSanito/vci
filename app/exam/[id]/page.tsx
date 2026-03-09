@@ -1,4 +1,4 @@
-import { getExamById } from "../../../actions/examActions";
+import { getExamById } from "@/app/actions/examActions";
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";

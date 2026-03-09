@@ -1,5 +1,5 @@
-import { getExamResult } from "../../../actions/examResultActions";
-import { getExamById } from "../../../actions/examActions";
+import { getExamResult } from "@/app/actions/examResultActions";
+import { getExamById } from "@/app/actions/examActions";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 

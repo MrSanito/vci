@@ -1,5 +1,5 @@
-import { getExamAnalytics } from "../../../actions/examAnalyticsActions";
-import { getStudents } from "../../../actions/studentActions";
+import { getExamAnalytics } from "@/app/actions/examAnalyticsActions";
+import { getStudents } from "@/app/actions/studentActions";
 import { redirect } from "next/navigation";
 import AssignExamForm from "../../../components/admin/AssignExamForm";
 
