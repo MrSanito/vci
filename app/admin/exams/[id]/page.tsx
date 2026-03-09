@@ -11,7 +11,7 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
   }
 
   const students = await getStudents();
-  const studentMap = new Map(students.map((s: any) => [s.clerkId, s]));
+  const studentMap = new Map<string, any>(students.map((s: any) => [s.clerkId, s]));
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-6">
