@@ -84,7 +84,7 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
               </thead>
               <tbody>
                 {analytics.exam.assignedTo.map((studentId: string) => {
-                  const student = studentMap.get(studentId);
+                  const student = studentMap.get(studentId) as any;
                   const result = analytics.results.find((r: any) => r.studentId === studentId);
                   const attempt = analytics.attempts.find((a: any) => a.studentId === studentId);
                   
@@ -144,7 +144,7 @@ export default async function ExamDetailsPage({ params }: { params: { id: string
             
             <div className="space-y-3">
               {analytics.results.slice(0, 5).map((result: any, idx: number) => {
-                const student = studentMap.get(result.studentId);
+                const student = studentMap.get(result.studentId) as any;
                 return (
                   <div key={result._id} className="flex items-center gap-4 p-3 bg-slate-800/50 rounded-lg">
                     <div className={`text-2xl font-bold ${
