@@ -1,6 +1,6 @@
 'use server'
 
-import { clerkClient } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '../lib/db';
 import Exam from '../models/Exam';
 import ExamAttempt from '../models/ExamAttempt';
@@ -9,8 +9,10 @@ import { checkRole } from '../utils/roles';
 import { revalidatePath } from 'next/cache';
 
 export async function createExam(formData: any) {
+  const { userId } = await auth();
   const isAdmin = await checkRole('admin');
-  if (!isAdmin) {
+  
+  if (!isAdmin || !userId) {
     return { success: false, message: 'Unauthorized' };
   }
 
@@ -19,7 +21,7 @@ export async function createExam(formData: any) {
     
     const exam = await Exam.create({
       ...formData,
-      createdBy: formData.adminId
+      createdBy: userId
     });
 
     revalidatePath('/admin/exams');
@@ -58,5 +60,36 @@ export async function deleteExam(examId: string) {
     return { success: true, message: 'Exam deleted successfully!' };
   } catch (error: any) {
     return { success: false, message: error.message };
+  }
+}
+
+export async function updateExamQuestions(examId: string, sections: any[]) {
+  const isAdmin = await checkRole('admin');
+  if (!isAdmin) {
+    return { success: false, message: 'Unauthorized' };
+  }
+
+  try {
+    await connectToDatabase();
+    
+    // Calculate new total marks based on questions
+    let newTotalMarks = 0;
+    sections.forEach(sec => {
+      sec.questions.forEach((q: any) => {
+        newTotalMarks += (q.marks || 1);
+      });
+    });
+
+    await Exam.findByIdAndUpdate(examId, {
+      sections: sections,
+      totalMarks: newTotalMarks,
+      passingMarks: Math.floor(newTotalMarks * 0.4) // Update passing marks automatically
+    });
+
+    revalidatePath(`/admin/exams/${examId}`);
+    return { success: true, message: 'Questions updated successfully!' };
+  } catch (error: any) {
+    console.error('Update Questions Error:', error);
+    return { success: false, message: error.message || 'Failed to update questions' };
   }
 }

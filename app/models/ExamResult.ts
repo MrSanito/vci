@@ -68,9 +68,11 @@ export interface IExamResult extends Document {
   submittedAt: Date;
   
   // Proctoring
+  // Proctoring
   tabSwitchCount: number;
   warningsIssued: number;
   autoSubmitted: boolean;
+  isPreview: boolean;
 }
 
 const ExamResultSchema: Schema = new Schema({
@@ -92,7 +94,8 @@ const ExamResultSchema: Schema = new Schema({
   
   tabSwitchCount: { type: Number, default: 0 },
   warningsIssued: { type: Number, default: 0 },
-  autoSubmitted: { type: Boolean, default: false }
+  autoSubmitted: { type: Boolean, default: false },
+  isPreview: { type: Boolean, default: false }
 }, {
   timestamps: true
 });

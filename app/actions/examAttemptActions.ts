@@ -150,8 +150,8 @@ export async function updateQuestionState(attemptId: string, questionNum: number
       return { success: false, message: 'Invalid attempt' };
     }
 
-    // Update question state
-    attempt.questionStates.set(questionNum, state);
+    // Update question state (use String key – Mongoose Maps serialize keys as strings)
+    attempt.questionStates.set(String(questionNum), state);
     attempt.lastActivityAt = new Date();
     await attempt.save();
 

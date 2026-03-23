@@ -16,12 +16,10 @@ export async function createStudent(formData: FormData) {
   // Extract values from FormData
   const name = formData.get('name') as string;
   const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
   const course = formData.get('course') as string;
-  const rollNumber = formData.get('rollNumber') as string;
   const batch = formData.get('batch') as string | null;
 
-  if (!name || !email || !password || !rollNumber || !course) {
+  if (!name || !email || !course) {
     return { success: false, message: 'All required fields must be filled.' };
   }
 
@@ -29,17 +27,30 @@ export async function createStudent(formData: FormData) {
     await connectToDatabase();
 
     // 2. Check if student already exists in DB
-    const existingStudent = await Student.findOne({ $or: [{ email }, { rollNumber }] });
+    const existingStudent = await Student.findOne({ email });
     if (existingStudent) {
-      return { success: false, message: 'Student with this email or Roll Number already exists.' };
+      return { success: false, message: 'A student with this email already exists.' };
     }
 
-    // 3. Create User in Clerk
+    // 3. Generate Sequential Roll Number
+    const year = new Date().getFullYear();
+    const studentsThisYear = await Student.countDocuments({ 
+        createdAt: { 
+            $gte: new Date(`${year}-01-01`), 
+            $lte: new Date(`${year}-12-31`) 
+        } 
+    });
+    const rollNumber = `VCI-${year}-${(studentsThisYear + 1).toString().padStart(3, '0')}`;
+
+    // 4. Create User in Clerk (with random password since they use Google)
     const client = await clerkClient()
     
+    // Generate a long random password that satisfies all requirements
+    const randomPassword = Array(20).fill(0).map(() => Math.random().toString(36).charAt(2)).join('') + 'A1!a';
+
     const user = await client.users.createUser({
       emailAddress: [email],
-      password: password,
+      password: randomPassword,
       firstName: name.split(' ')[0],
       lastName: name.split(' ').slice(1).join(' ') || name.split(' ')[0],
       publicMetadata: {
@@ -47,8 +58,8 @@ export async function createStudent(formData: FormData) {
       }
     });
 
-    // 4. Create Student in MongoDB
-    await Student.create({
+    // 5. Create Student in MongoDB
+    const newStudent = await Student.create({
       clerkId: user.id,
       name,
       email,
@@ -59,7 +70,7 @@ export async function createStudent(formData: FormData) {
     });
 
     revalidatePath('/admin');
-    return { success: true, message: `Student ${name} created successfully!` };
+    return { success: true, message: `Student ${name} created successfully! Roll No: ${rollNumber}`, studentId: newStudent._id.toString() };
 
   } catch (error: any) {
     console.error('Create Student Error:', error);

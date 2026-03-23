@@ -70,25 +70,31 @@ export async function submitExam(attemptId: string) {
       };
 
       section.questions.forEach((question: any) => {
-        const state = attempt.questionStates.get(questionIndex);
-        const studentAnswer = state?.selectedAnswer;
+        const state = attempt.questionStates.get(String(questionIndex));
+        const studentAnswer = state?.selectedAnswer ?? null;
         const correctAnswers = question.correctAnswers;
-        
+
+        // Debug: log types so we can trace mismatches in server logs
+        console.log(`[Grade Q${questionIndex}] studentAnswer=${JSON.stringify(studentAnswer)} (${typeof studentAnswer}), correctAnswers=${JSON.stringify(correctAnswers)}`);
+
         let isCorrect = false;
         let marksAwarded = 0;
 
         if (studentAnswer !== null && studentAnswer !== undefined) {
           sectionData.attempted++;
           
-          // Check if answer is correct
+          // Check if answer is correct.
+          // Defensively coerce to Number — selectedAnswer may be stored as string
+          // (e.g., after localStorage round-trip) while correctAnswers are always numbers.
           if (question.questionType === 'single') {
-            isCorrect = studentAnswer === correctAnswers[0];
+            isCorrect = Number(studentAnswer) === Number(correctAnswers[0]);
           } else if (question.questionType === 'multiple') {
-            const sorted1 = [...studentAnswer].sort();
-            const sorted2 = [...correctAnswers].sort();
+            const sorted1 = (Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer])
+              .map(Number).sort((a: number, b: number) => a - b);
+            const sorted2 = [...correctAnswers].map(Number).sort((a: number, b: number) => a - b);
             isCorrect = JSON.stringify(sorted1) === JSON.stringify(sorted2);
           } else if (question.questionType === 'numerical') {
-            isCorrect = Math.abs(studentAnswer - correctAnswers[0]) < 0.01;
+            isCorrect = Math.abs(Number(studentAnswer) - Number(correctAnswers[0])) < 0.01;
           }
 
           if (isCorrect) {
@@ -144,7 +150,8 @@ export async function submitExam(attemptId: string) {
       submittedAt: new Date(),
       tabSwitchCount: attempt.tabSwitchCount,
       warningsIssued: attempt.warningsIssued,
-      autoSubmitted: attempt.autoSubmitted
+      autoSubmitted: attempt.autoSubmitted,
+      isPreview: attempt.isPreview
     });
 
     // Mark attempt as submitted

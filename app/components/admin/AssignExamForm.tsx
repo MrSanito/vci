@@ -16,7 +16,6 @@ export default function AssignExamForm({ examId, students, currentlyAssigned }: 
   const [assignMode, setAssignMode] = useState<'individual' | 'batch'>('individual');
   const [selectedBatch, setSelectedBatch] = useState('');
 
-  // Get unique batches
   const batches = Array.from(new Set(students.map(s => s.batch).filter(Boolean)));
 
   const handleToggleStudent = (studentId: string) => {
@@ -38,12 +37,12 @@ export default function AssignExamForm({ examId, students, currentlyAssigned }: 
     e.preventDefault();
     
     if (assignMode === 'individual' && selectedStudents.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one student' });
+      setMessage({ type: 'error', text: 'Please select at least one student.' });
       return;
     }
     
     if (assignMode === 'batch' && !selectedBatch) {
-      setMessage({ type: 'error', text: 'Please select a batch' });
+      setMessage({ type: 'error', text: 'Please select a batch/course.' });
       return;
     }
 
@@ -67,87 +66,85 @@ export default function AssignExamForm({ examId, students, currentlyAssigned }: 
   const unassignedStudents = students.filter(s => !currentlyAssigned.includes(s.clerkId));
 
   return (
-    <div className="glass-panel p-6 rounded-2xl">
-      <h3 className="text-xl font-bold text-white mb-4">Assign Students</h3>
+    <div className="bg-[#0A0A0A] border border-white/5 p-8 sm:p-12 rounded-[3rem] shadow-xl text-white">
+      <h3 className="text-xl font-bold text-white mb-10 font-heading italic uppercase border-b border-white/5 pb-6">Assign Exam to Students</h3>
       
       {message && (
-        <div className={`p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+        <div className={`p-6 rounded-2xl mb-8 text-[10px] font-bold uppercase tracking-widest italic flex items-center gap-5 border ${message.type === 'success' ? 'bg-[#FF007F10] text-[#FF007F] border-[#FF007F20]' : 'bg-red-500/10 text-red-400 border-red-500/20'} animate-in fade-in duration-300`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${message.type === 'success' ? 'bg-[#FF007F] text-white' : 'bg-red-500 text-white'}`}>
+            {message.type === 'success' ? '✓' : '!'}
+          </div>
           {message.text}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Assignment Mode Toggle */}
-        <div className="flex gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setAssignMode('individual')}
-            className={`btn btn-sm ${assignMode === 'individual' ? 'btn-primary' : 'btn-ghost'}`}
-          >
-            Individual Students
-          </button>
-          <button
-            type="button"
-            onClick={() => setAssignMode('batch')}
-            className={`btn btn-sm ${assignMode === 'batch' ? 'btn-primary' : 'btn-ghost'}`}
-          >
-            Batch Assignment
-          </button>
+        {/* Mode Toggle */}
+        <div className="flex gap-3 mb-8">
+          {[
+            { val: 'individual', label: 'Select Students' },
+            { val: 'batch', label: 'By Course/Batch' }
+          ].map(opt => (
+            <button
+              key={opt.val}
+              type="button"
+              onClick={() => setAssignMode(opt.val as any)}
+              className={`h-12 px-8 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all italic ${assignMode === opt.val ? 'bg-[#FF007F] text-white shadow-[0_0_15px_-5px_#FF007F]' : 'bg-white/5 border border-white/10 text-zinc-500 hover:text-white'}`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         {assignMode === 'batch' ? (
-          /* Batch Selection */
-          <div className="mb-4">
-            <label className="block text-sm text-slate-400 mb-2">Select Batch</label>
+          <div className="mb-8">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 mb-3 block italic">Choose a Course/Batch</label>
             <select
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
-              className="select select-bordered w-full bg-slate-800 text-white"
+              className="w-full h-14 px-6 bg-black border border-white/10 text-white rounded-2xl focus:border-[#FF007F] outline-none font-bold italic"
             >
-              <option value="">Choose a batch...</option>
-              {batches.map((batch) => (
+              <option value="">Select a course...</option>
+              {batches.map((batch: any) => (
                 <option key={batch} value={batch}>{batch}</option>
               ))}
             </select>
             {batches.length === 0 && (
-              <p className="text-sm text-slate-400 mt-2">No batches found. Students need batch assignments.</p>
+              <p className="text-[10px] text-zinc-600 mt-3 italic font-bold uppercase tracking-widest">No courses found. Students need course assignments first.</p>
             )}
           </div>
         ) : (
-          /* Individual Student Selection */
           <>
-            <div className="mb-4">
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest italic">{unassignedStudents.length} students available</p>
               <button 
                 type="button"
                 onClick={handleSelectAll}
-                className="btn btn-sm btn-outline btn-primary mb-2"
+                className="text-[10px] font-bold uppercase tracking-widest text-[#FF007F] hover:text-white transition-colors italic underline underline-offset-4"
               >
-                Select All Unassigned
+                Select All
               </button>
-              <p className="text-sm text-slate-400">
-                {unassignedStudents.length} students available to assign
-              </p>
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-2 mb-4">
+            <div className="max-h-64 overflow-y-auto space-y-3 mb-8 custom-scrollbar pr-2">
               {unassignedStudents.length === 0 ? (
-                <p className="text-slate-400 text-center py-4">All students have been assigned</p>
+                <p className="text-zinc-600 text-center py-8 text-[10px] font-bold uppercase tracking-widest italic">All students have already been assigned this exam.</p>
               ) : (
                 unassignedStudents.map((student) => (
                   <label 
                     key={student.clerkId}
-                    className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-4 p-5 bg-black border border-white/5 rounded-2xl cursor-pointer hover:border-[#FF007F]/30 transition-all"
                   >
                     <input
                       type="checkbox"
                       checked={selectedStudents.includes(student.clerkId)}
                       onChange={() => handleToggleStudent(student.clerkId)}
-                      className="checkbox checkbox-primary"
+                      className="w-5 h-5 accent-[#FF007F] rounded"
                     />
-                    <div className="flex-1">
-                      <div className="text-white font-semibold">{student.name}</div>
-                      <div className="text-sm text-slate-400">
-                        {student.rollNumber} • {student.batch || 'No batch'} • {student.email}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-bold italic truncate">{student.name}</div>
+                      <div className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest italic mt-0.5">
+                        {student.rollNumber} • {student.course || 'No course'}
                       </div>
                     </div>
                   </label>
@@ -160,12 +157,16 @@ export default function AssignExamForm({ examId, students, currentlyAssigned }: 
         <button 
           type="submit" 
           disabled={loading || (assignMode === 'individual' && selectedStudents.length === 0) || (assignMode === 'batch' && !selectedBatch)}
-          className="btn btn-primary w-full"
+          className="w-full h-16 bg-[#FF007F] text-white font-bold uppercase tracking-[0.3em] text-[10px] rounded-2xl hover:bg-white hover:text-black transition-all active:scale-95 disabled:opacity-40 italic shadow-[0_0_20px_-5px_#FF007F] flex items-center justify-center gap-4"
         >
           {loading ? (
-            <span className="loading loading-spinner"></span>
+            <span className="flex gap-3">
+              <span className="w-2.5 h-2.5 bg-white rounded-full animate-bounce"></span>
+              <span className="w-2.5 h-2.5 bg-white rounded-full animate-bounce [animation-delay:0.15s]"></span>
+              <span className="w-2.5 h-2.5 bg-white rounded-full animate-bounce [animation-delay:0.3s]"></span>
+            </span>
           ) : assignMode === 'batch' ? (
-            'Assign to Batch'
+            'Assign to Entire Course'
           ) : (
             `Assign to ${selectedStudents.length} Student(s)`
           )}

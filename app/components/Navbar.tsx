@@ -1,118 +1,97 @@
-import React from "react";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from '@clerk/nextjs'
+'use client'
 
-const Navbar = () => {
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { UserButton, useUser, SignInButton, SignUpButton } from "@clerk/nextjs";
+
+export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+  const { user, isLoaded } = useUser();
+  const isAdmin = user?.publicMetadata?.role === 'admin';
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Hide the global navbar ONLY on mobile for dashboard and admin areas (Sidebar handles mobile)
+  const isDashboard = pathname?.startsWith('/dashboard') || pathname?.startsWith('/admin');
+
+  const baseLinks = [
+    { name: "Home", href: "/" },
+    { name: "Exams", href: "/exams" },
+    { name: "About", href: "/about" },
+  ];
+
   return (
-    <div className="drawer drawer-start z-50">
-      {/* TOGGLE */}
-      <input id="mobile-drawer" type="checkbox" className="drawer-toggle" />
-
-      <div className="drawer-content flex flex-col">
-        <div className="navbar glass-panel text-white px-6 sticky top-0 z-50 transition-all duration-300">
-          {/* LEFT — INSTITUTE NAME */}
-          <div className="navbar-start">
-            <h3 className="text-xl font-extrabold whitespace-nowrap tracking-wide bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Vishal Computer Institute
-            </h3>
+    <nav 
+      className={`fixed top-0 left-0 right-0 z-[110] transition-all duration-500 ${
+        scrolled ? "bg-black/95 backdrop-blur-xl border-b border-[#FF007F10] py-3 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)]" : "bg-black/80 backdrop-blur-md py-6"
+      } ${isDashboard ? "lg:flex hidden" : "flex"}`}
+    >
+      <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 flex items-center justify-between w-full">
+        {/* Brand: Simple & Clean */}
+        <Link href="/" className="flex items-center gap-4 group cursor-pointer active:scale-95 transition-all">
+          <div className="w-10 h-10 bg-[#FF007F] text-white flex items-center justify-center font-bold text-xl rounded-xl transition-transform shadow-[0_0_20px_-5px_#FF007F]">V</div>
+          <div className="flex flex-col">
+            <span className="text-white text-lg font-bold font-heading tracking-tight leading-none group-hover:text-[#FF007F] transition-colors">VCI Institute</span>
+            <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.2em] mt-1 group-hover:text-white transition-colors">Computer Education</span>
           </div>
+        </Link>
 
-          {/* RIGHT */}
-          <div className="navbar-end">
-            {/* DESKTOP MENU */}
-            <ul className="menu menu-horizontal px-1 gap-4 text-sm font-medium hidden lg:flex items-center">
-              <li>
-                <a href="/" className="hover:text-blue-400 transition-colors duration-300">Home</a>
-              </li>
-              <li>
-                <a className="hover:text-blue-400 transition-colors duration-300">Notes</a>
-              </li>
-              <li>
-                <a className="hover:text-blue-400 transition-colors duration-300">YouTube</a>
-              </li>
-              {/* Show Dashboard when logged in */}
-              <SignedIn>
-                <li>
-                  <a href="/dashboard" className="text-blue-400 hover:text-blue-300 font-bold transition-colors duration-300">Dashboard</a>
-                </li>
-              </SignedIn>
-              <li>
-                <a className="hover:text-blue-400 transition-colors duration-300">About Us</a>
-              </li>
-              <li>
-                <a href="/admin" className="btn btn-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none shadow-lg hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 ml-2">
-                  Admin Login
-                </a>
-              </li>
-              <li className="ml-2">
-                  <SignedIn>
-                      <UserButton />
-                  </SignedIn>
-                  <SignedOut>
-                      <SignInButton mode="modal">
-                          <button className="btn btn-sm btn-ghost text-white">Sign In</button>
-                      </SignInButton>
-                  </SignedOut>
-              </li>
-            </ul>
-            
-            {/* HAMBURGER — MOBILE ONLY */}
-            <label
-              htmlFor="mobile-drawer"
-              className="btn btn-ghost btn-circle text-white lg:hidden"
+        {/* Navigation */}
+        <div className="hidden lg:flex items-center gap-10 ml-20">
+          {baseLinks.map((link) => (
+            <Link 
+              key={link.name} 
+              href={link.href} 
+              className={`text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative group ${
+                pathname === link.href ? "text-[#FF007F]" : "text-zinc-400 hover:text-white"
+              }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
-            </label>
-          </div>
+              {link.name}
+              <span className={`absolute -bottom-2 left-0 h-0.5 bg-[#FF007F] transition-all duration-300 ${pathname === link.href ? "w-full shadow-[0_0_10px_#FF007F]" : "w-0 group-hover:w-full"}`}></span>
+            </Link>
+          ))}
+          {isAdmin && (
+              <>
+                 <Link href="/dashboard" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#FF007F] hover:text-white transition-all underline decoration-[#FF007F]/20 decoration-2 underline-offset-8">Student Dashboard</Link>
+                 <Link href="/admin" className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#FF007F] hover:text-white transition-all underline decoration-[#FF007F]/20 decoration-2 underline-offset-8">Admin Dashboard</Link>
+              </>
+          )}
+        </div>
+
+        {/* Auth */}
+        <div className="flex items-center gap-8 pl-10 border-l border-[#FF007F10] ml-auto">
+          {isLoaded ? (
+            user ? (
+               <div className="flex items-center gap-4">
+                   <div className="flex flex-col items-end hidden sm:flex">
+                        <span className="text-[10px] text-white font-bold uppercase tracking-widest">{user.firstName}</span>
+                        <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-0.5 leading-none">{isAdmin ? 'Admin Area' : 'Student'}</span>
+                   </div>
+                   <UserButton afterSignOutUrl="/login" appearance={{ elements: { userButtonAvatarBox: 'w-10 h-10 border-2 border-white/10 shadow-sm hover:border-[#FF007F] transition-all' } }} />
+               </div>
+            ) : (
+                <div className="flex items-center gap-6">
+                     <SignInButton mode="modal">
+                        <button className="text-[10px] font-bold uppercase tracking-[0.2em] text-white hover:text-[#FF007F] transition-colors">Login</button>
+                    </SignInButton>
+                    <SignUpButton mode="modal">
+                        <button className="px-8 h-12 bg-white text-black text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl hover:bg-[#FF007F] hover:text-white transition-all shadow-xl active:scale-95">Register</button>
+                    </SignUpButton>
+                </div>
+            )
+          ) : (
+             <div className="w-10 h-10 rounded-xl bg-zinc-900 animate-pulse"></div>
+          )}
         </div>
       </div>
-
-      {/* SIDEBAR (RIGHT SIDE ON MOBILE) */}
-      <div className="drawer-side z-50">
-        <label htmlFor="mobile-drawer" className="drawer-overlay backdrop-blur-sm"></label>
-
-        <ul className="menu p-4 w-72 min-h-full bg-slate-900/95 backdrop-blur-xl text-white space-y-4 shadow-2xl border-r border-white/10">
-          <li className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Menu</li>
-          <li>
-            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Home</a>
-          </li>
-          <li>
-            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Notes</a>
-          </li>
-          <li>
-            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">YouTube</a>
-          </li>
-          <li>
-            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">Online Test</a>
-          </li>
-          <li>
-            <a className="hover:bg-white/10 hover:text-blue-400 rounded-lg">About Us</a>
-          </li>
-          <li>
-            <a className="btn bg-gradient-to-r from-blue-600 to-purple-600 text-white border-none mt-4 shadow-lg w-full">Admin Login</a>
-          </li>
-        </ul>
-         <SignedOut>
-              <SignInButton />
-              <SignUpButton>
-                <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                  Sign Up
-                </button>
-              </SignUpButton>
-            </SignedOut>
-            {/* Show the user button when the user is signed in */}
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-      </div>
-    </div>
+    </nav>
   );
-};
-
-export default Navbar;
+}

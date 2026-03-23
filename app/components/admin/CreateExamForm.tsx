@@ -2,415 +2,339 @@
 
 import { useState } from 'react';
 import { createExam } from '../../actions/examActions';
-import { useRouter } from 'next/navigation';
 
 interface Question {
   questionText: string;
-  questionType: 'single' | 'multiple' | 'numerical';
+  questionType: 'single' | 'multiple' | 'numerical' | 'caseStudy';
   options: string[];
   correctAnswers: number[];
   marks: number;
-  negativeMarks: number;
 }
 
 interface Section {
-  name: string;
+  id: number;
+  title: string;
   questions: Question[];
 }
 
-export default function CreateExamForm({ 
-  adminId, 
-  courses = [], 
-  students = [] 
-}: { 
-  adminId: string, 
-  courses?: any[], 
-  students?: any[] 
-}) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  
-  // Basic exam details
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [totalDuration, setTotalDuration] = useState(180); // minutes
-  const [passingMarks, setPassingMarks] = useState(40);
-  const [instructions, setInstructions] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  
-  // Assignment
-  const [assignmentType, setAssignmentType] = useState<'all' | 'course' | 'manual'>('all');
-  const [assignedCourses, setAssignedCourses] = useState<string[]>([]);
-  const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  
-  // Sections
-  const [sections, setSections] = useState<Section[]>([
-    { name: 'Section 1', questions: [] }
-  ]);
-  
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+export default function CreateExamForm() {
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [sections, setSections] = useState<Section[]>([{ 
+        id: 1, 
+        title: 'Main Section', 
+        questions: [{ questionText: '', questionType: 'single', options: ['', '', '', ''], correctAnswers: [0], marks: 1 }]
+    }]);
+    const [activeSectionIdx, setActiveSectionIdx] = useState(0);
 
-  const addSection = () => {
-    setSections([...sections, { name: `Section ${sections.length + 1}`, questions: [] }]);
-  };
-
-  const addQuestion = () => {
-    const newQuestion: Question = {
-      questionText: '',
-      questionType: 'single',
-      options: ['', '', '', ''],
-      correctAnswers: [],
-      marks: 4,
-      negativeMarks: 1
-    };
-    
-    const updated = [...sections];
-    updated[currentSectionIndex].questions.push(newQuestion);
-    setSections(updated);
-  };
-
-  const updateQuestion = (qIndex: number, field: string, value: any) => {
-    const updated = [...sections];
-    updated[currentSectionIndex].questions[qIndex] = {
-      ...updated[currentSectionIndex].questions[qIndex],
-      [field]: value
-    };
-    setSections(updated);
-  };
-
-  const updateOption = (qIndex: number, optIndex: number, value: string) => {
-    const updated = [...sections];
-    updated[currentSectionIndex].questions[qIndex].options[optIndex] = value;
-    setSections(updated);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-
-    // Calculate total marks
-    const totalMarks = sections.reduce((sum, section) => 
-      sum + section.questions.reduce((qSum, q) => qSum + q.marks, 0), 0
-    );
-
-    const examData = {
-      title,
-      description,
-      totalDuration,
-      sections,
-      totalMarks,
-      passingMarks,
-      assingedTo: assignedTo, // mapped to assignedTo later but let's keep it clean
-      assignedTo: assignedTo,
-      assignedCourses,
-      assignmentType,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      instructions,
-      shuffleQuestions: false,
-      shuffleOptions: false,
-      showResultsImmediately: true,
-      adminId
+    const addSection = () => {
+        setSections([...sections, { 
+            id: Date.now(), 
+            title: `Section ${sections.length + 1}`, 
+            questions: [{ questionText: '', questionType: 'single', options: ['', '', '', ''], correctAnswers: [0], marks: 1 }]
+        }]);
+        setActiveSectionIdx(sections.length);
     };
 
-    const result = await createExam(examData);
-    
-    if (result.success) {
-      setMessage({ type: 'success', text: result.message });
-      setTimeout(() => router.push('/admin/exams'), 1500);
-    } else {
-      setMessage({ type: 'error', text: result.message });
+    const removeSection = (id: number) => {
+        if (sections.length > 1) {
+            setSections(sections.filter(s => s.id !== id));
+            setActiveSectionIdx(0);
+        }
+    };
+
+    const handleAddQuestion = () => {
+        const newSections = [...sections];
+        newSections[activeSectionIdx].questions.push({
+            questionText: '',
+            questionType: 'single',
+            options: ['', '', '', ''],
+            correctAnswers: [0],
+            marks: 1
+        });
+        setSections(newSections);
+    };
+
+    const handleQuestionChange = (qIdx: number, field: keyof Question, value: any) => {
+        const newSections = [...sections];
+        newSections[activeSectionIdx].questions[qIdx] = {
+            ...newSections[activeSectionIdx].questions[qIdx],
+            [field]: value
+        };
+        setSections(newSections);
+    };
+
+    const handleOptionChange = (qIdx: number, optIdx: number, value: string) => {
+        const newSections = [...sections];
+        newSections[activeSectionIdx].questions[qIdx].options[optIdx] = value;
+        setSections(newSections);
+    };
+
+    const setCorrectAnswer = (qIdx: number, optIdx: number) => {
+        const newSections = [...sections];
+        const q = newSections[activeSectionIdx].questions[qIdx];
+        
+        if (q.questionType === 'single') {
+            q.correctAnswers = [optIdx];
+        } else {
+            if (q.correctAnswers.includes(optIdx)) {
+                q.correctAnswers = q.correctAnswers.filter(ans => ans !== optIdx);
+            } else {
+                q.correctAnswers.push(optIdx);
+            }
+        }
+        setSections(newSections);
+    };
+
+    const handleRemoveQuestion = (qIdx: number) => {
+        const newSections = [...sections];
+        newSections[activeSectionIdx].questions.splice(qIdx, 1);
+        setSections(newSections);
+    };
+
+    async function handleSubmit(formData: FormData) {
+        setLoading(true);
+        setMessage(null);
+        
+        // Validate
+        let isValid = true;
+        sections.forEach(sec => {
+            if (!sec.title) isValid = false;
+            sec.questions.forEach(q => {
+                if (!q.questionText || q.options.some(o => !o) || q.correctAnswers.length === 0) {
+                    isValid = false;
+                }
+            });
+        });
+
+        if (!isValid) {
+            setMessage({ type: 'error', text: 'Please fill all section titles, question texts, options, and select correct answers.' });
+            setLoading(false);
+            return;
+        }
+
+        const title = formData.get('title') as string;
+        const description = formData.get('description') as string;
+        const totalDuration = Number(formData.get('duration'));
+        
+        let totalMarks = 0;
+        const sectionsData = sections.map((s) => {
+            const secMarks = s.questions.reduce((sum, q) => sum + (q.marks || 1), 0);
+            totalMarks += secMarks;
+            return {
+                name: s.title,
+                questionCount: s.questions.length,
+                questions: s.questions
+            };
+        });
+
+        const passingMarks = Math.floor(totalMarks * 0.4); 
+
+        const examPayload = {
+            title,
+            description,
+            totalDuration,
+            totalMarks,
+            passingMarks,
+            sections: sectionsData,
+            assignmentType: 'all',
+            startDate: new Date(),
+            endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+        };
+
+        const result = await createExam(examPayload);
+        
+        if (result.success) {
+            setMessage({ type: 'success', text: result.message });
+            const form = document.getElementById('create-exam-form') as HTMLFormElement;
+            form.reset();
+            setSections([{ 
+                id: 1, 
+                title: 'Main Section', 
+                questions: [{ questionText: '', questionType: 'single', options: ['', '', '', ''], correctAnswers: [0], marks: 1 }]
+            }]);
+            setActiveSectionIdx(0);
+        } else {
+            setMessage({ type: 'error', text: result.message });
+        }
+        setLoading(false);
     }
-    setLoading(false);
-  };
 
-  return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h2 className="text-2xl font-bold text-white mb-6">Create New Exam</h2>
-      
-      {message && (
-        <div className={`p-3 rounded-lg mb-4 ${message.type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
-          {message.text}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Details */}
-        <div className="glass-panel p-6 rounded-2xl">
-          <h3 className="text-lg font-bold text-white mb-4">Basic Details</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Exam Title</label>
-              <input 
-                type="text" 
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                className="input input-bordered w-full bg-slate-800/50 border-white/10 text-white"
-                placeholder="e.g., JEE Main Mock Test 1"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Duration (minutes)</label>
-              <input 
-                type="number" 
-                value={totalDuration}
-                onChange={(e) => setTotalDuration(Number(e.target.value))}
-                required
-                className="input input-bordered w-full bg-slate-800/50 border-white/10 text-white"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Start Date</label>
-              <input 
-                type="datetime-local" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-                className="input input-bordered w-full bg-slate-800/50 border-white/10 text-white"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">End Date</label>
-              <input 
-                type="datetime-local" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-                className="input input-bordered w-full bg-slate-800/50 border-white/10 text-white"
-              />
-            </div>
-            
-            <div className="md:col-span-2">
-              <label className="block text-sm text-slate-400 mb-1">Description</label>
-              <textarea 
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="textarea textarea-bordered w-full bg-slate-800/50 border-white/10 text-white"
-                rows={3}
-              />
-            </div>
-
-            <div className="md:col-span-2 mt-4 space-y-4">
-              <h4 className="text-md font-semibold text-white">Student Assignment</h4>
-              
-              <div className="flex gap-4 mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" className="radio radio-primary" name="assignmentType" 
-                    checked={assignmentType === 'all'} onChange={() => setAssignmentType('all')} />
-                  <span className="text-white">All Students</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" className="radio radio-primary" name="assignmentType" 
-                    checked={assignmentType === 'course'} onChange={() => setAssignmentType('course')} />
-                  <span className="text-white">By Course</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" className="radio radio-primary" name="assignmentType" 
-                    checked={assignmentType === 'manual'} onChange={() => setAssignmentType('manual')} />
-                  <span className="text-white">Manual Selection</span>
-                </label>
-              </div>
-
-              {assignmentType === 'course' && (
-                <div className="space-y-2 p-4 bg-slate-800/30 rounded-lg border border-white/5">
-                  <label className="block text-sm text-slate-400 mb-2">Select Courses</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {courses.map(course => (
-                      <label key={course} className="flex items-center gap-2 p-2 bg-slate-700/30 rounded cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="checkbox checkbox-sm checkbox-primary" 
-                          checked={assignedCourses.includes(course)}
-                          onChange={(e) => {
-                            if (e.target.checked) setAssignedCourses([...assignedCourses, course]);
-                            else setAssignedCourses(assignedCourses.filter(c => c !== course));
-                          }}
-                        />
-                        <span className="text-sm text-white">{course}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {courses.length === 0 && <p className="text-sm text-slate-500">No courses available.</p>}
+    return (
+        <div className="w-full">
+            {message && (
+                <div className={`p-8 rounded-3xl mb-10 text-[11px] font-bold uppercase tracking-[0.2em] italic flex items-center gap-6 border-2 ${message.type === 'success' ? 'bg-[#FF007F10] text-[#FF007F] border-[#FF007F20]' : 'bg-red-500/10 text-red-500 border-red-500/20'} animate-in fade-in slide-in-from-top-4 duration-500`}>
+                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg ${message.type === 'success' ? 'bg-[#FF007F] text-white' : 'bg-red-500 text-white'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={message.type === 'success' ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" : "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"} />
+                        </svg>
+                   </div>
+                    <span>{message.text}</span>
                 </div>
-              )}
+            )}
 
-              {assignmentType === 'manual' && (
-                <div className="space-y-2 p-4 bg-slate-800/30 rounded-lg border border-white/5">
-                  <label className="block text-sm text-slate-400 mb-2">Select Students</label>
-                  <div className="max-h-60 overflow-y-auto grid md:grid-cols-2 gap-2 pr-2">
-                    {students.map((student: any) => (
-                      <label key={student.clerkId || student._id} className="flex items-start gap-2 p-2 bg-slate-700/30 rounded cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="checkbox checkbox-sm checkbox-primary mt-1" 
-                          checked={assignedTo.includes(student.clerkId || student._id)}
-                          onChange={(e) => {
-                            const id = student.clerkId || student._id;
-                            if (e.target.checked) setAssignedTo([...assignedTo, id]);
-                            else setAssignedTo(assignedTo.filter(s => s !== id));
-                          }}
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-sm text-white font-medium">{student.name}</span>
-                          <span className="text-xs text-slate-400">{student.email} • {student.course}</span>
+            <form id="create-exam-form" action={handleSubmit} className="space-y-12">
+                 {/* Exam Information */}
+                 <div className="bg-[#0A0A0A] border border-white/5 p-10 rounded-[3rem] shadow-xl relative group">
+                     <div className="flex items-center gap-6 mb-10 border-b border-white/5 pb-8">
+                         <div className="w-12 h-12 bg-[#FF007F] text-white rounded-xl flex items-center justify-center shadow-[0_0_20px_#FF007F] rotate-6 italic font-bold text-xl">1</div>
+                         <div>
+                            <h3 className="text-xl md:text-2xl font-bold text-white font-heading tracking-tight uppercase italic">Exam Details</h3>
+                            <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.2em] mt-1">Enter the basic information for this test</p>
+                         </div>
+                     </div>
+
+                    <div className="space-y-8 px-2">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-700 ml-2 italic leading-none block">Exam Title</label>
+                            <input name="title" type="text" placeholder="e.g. Final Semester Examination" required 
+                                className="w-full h-16 px-8 bg-black border border-white/5 text-white font-bold text-sm rounded-2xl focus:border-[#FF007F] transition-all placeholder:text-zinc-800 italic" />
                         </div>
-                      </label>
-                    ))}
-                  </div>
-                  {students.length === 0 && <p className="text-sm text-slate-500">No students available.</p>}
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-700 ml-2 italic leading-none block">Instructions or Description</label>
+                            <textarea name="description" placeholder="Enter instructions for students..." required 
+                                className="w-full h-28 p-8 bg-black border border-white/5 text-white font-bold text-sm rounded-2xl focus:border-[#FF007F] transition-all placeholder:text-zinc-800 italic resize-none" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-700 ml-2 italic leading-none block">Duration (Minutes)</label>
+                                <input name="duration" type="number" placeholder="60" required 
+                                    className="w-full h-16 px-8 bg-black border border-white/5 text-white font-bold text-sm rounded-2xl focus:border-[#FF007F] transition-all italic" />
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-700 ml-2 italic leading-none block">Total Marks</label>
+                                <div className="w-full h-16 px-8 bg-white/5 border border-white/5 text-zinc-500 font-bold text-sm rounded-2xl italic flex items-center shadow-inner">
+                                    {sections.reduce((sum, sec) => sum + sec.questions.reduce((qSum, q) => qSum + (q.marks || 1), 0), 0)} (Auto-calculated)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              )}
-            </div>
-          </div>
+
+                {/* Exam Sections */}
+                <div className="space-y-8">
+                    <div className="flex items-center justify-between px-4">
+                         <div className="flex items-center gap-4">
+                            <div className="w-2 h-8 bg-[#FF007F] rounded-full shadow-[0_0_10px_#FF007F]"></div>
+                            <h3 className="text-2xl font-bold text-white font-heading tracking-tight uppercase italic leading-none">Question Sections</h3>
+                         </div>
+                        <button type="button" onClick={addSection} className="px-8 h-12 bg-white/5 border border-dashed border-white/10 text-white text-[9px] font-bold uppercase tracking-[0.3em] rounded-xl hover:bg-[#FF007F] transition-all active:scale-95 italic">
+                            + ADD SECTION
+                        </button>
+                    </div>
+
+                    <div className="bg-[#0A0A0A] border border-white/5 p-8 sm:p-12 rounded-[3rem] shadow-xl relative mt-8">
+                        {/* Section Tabs */}
+                        <div className="flex gap-4 mb-10 overflow-x-auto pb-4 custom-scrollbar items-center border-b border-white/5">
+                            {sections.map((sec, idx) => (
+                                <button 
+                                    key={sec.id}
+                                    type="button"
+                                    onClick={() => setActiveSectionIdx(idx)}
+                                    className={`px-8 py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest italic transition-all whitespace-nowrap flex items-center gap-3 group/tab ${
+                                        activeSectionIdx === idx 
+                                        ? 'bg-[#FF007F] text-white shadow-[0_0_20px_-5px_#FF007F]' 
+                                        : 'bg-black border border-white/5 text-zinc-500 hover:text-white'
+                                    }`}
+                                >
+                                    <input 
+                                        type="text"
+                                        value={sec.title}
+                                        onChange={(e) => {
+                                            const newSections = [...sections];
+                                            newSections[idx].title = e.target.value;
+                                            setSections(newSections);
+                                        }}
+                                        className="bg-transparent outline-none w-32 font-bold uppercase font-heading tracking-widest placeholder:text-white/30"
+                                        placeholder="Section Title"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    ({sec.questions.length})
+                                    {sections.length > 1 && (
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); removeSection(sec.id); }}
+                                            className={`w-5 h-5 rounded flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors cursor-pointer ${activeSectionIdx === idx ? 'text-white/50 hover:bg-white hover:text-red-500' : 'text-zinc-700'}`}
+                                        >
+                                            ✕
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {sections[activeSectionIdx] && (
+                            <div className="space-y-12 animate-in fade-in duration-500">
+                                {sections[activeSectionIdx].questions.map((q, qIdx) => (
+                                    <div key={qIdx} className="bg-black border border-white/5 p-8 rounded-4xl relative group border-l-4 border-l-transparent hover:border-l-[#FF007F] transition-all">
+                                        <button type="button" onClick={() => handleRemoveQuestion(qIdx)} className="absolute top-6 right-6 w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white">✕</button>
+                                        
+                                        <div className="flex items-center gap-6 mb-8 pr-12">
+                                            <div className="w-10 h-10 bg-white/5 text-zinc-500 font-bold rounded-xl flex items-center justify-center italic shrink-0">Q{qIdx + 1}</div>
+                                            <div className="flex-1">
+                                               <input 
+                                                  disabled // Form data cannot bind well to deeply nested dynamically rendered nested arrays without custom parsing. We use React state instead. Wait, they don't have name attributes, so ignoring is fine.
+                                                  value={q.questionText}
+                                                  onChange={(e) => handleQuestionChange(qIdx, 'questionText', e.target.value)}
+                                                  placeholder="Type your question here..."
+                                                  className="w-full bg-transparent text-lg text-white font-bold outline-none placeholder:text-zinc-800 italic focus:text-[#FF007F] transition-colors"
+                                               />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ml-16">
+                                            {q.options.map((opt, optIdx) => (
+                                                <div key={optIdx} className="flex items-center gap-4">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setCorrectAnswer(qIdx, optIdx)}
+                                                        className={`w-6 h-6 rounded-md border-2 shrink-0 flex items-center justify-center transition-all ${
+                                                            q.correctAnswers.includes(optIdx)
+                                                            ? 'bg-[#FF007F] border-[#FF007F] shadow-[0_0_10px_rgba(255,0,127,0.5)]'
+                                                            : 'bg-transparent border-zinc-700 hover:border-zinc-500'
+                                                        }`}
+                                                    >
+                                                        {q.correctAnswers.includes(optIdx) && <span className="w-2 h-2 bg-white rounded-full"></span>}
+                                                    </button>
+                                                    <input 
+                                                        value={opt}
+                                                        onChange={(e) => handleOptionChange(qIdx, optIdx, e.target.value)}
+                                                        placeholder={`Option ${optIdx + 1}`}
+                                                        className={`flex-1 h-12 px-6 bg-[#0A0A0A] border rounded-xl outline-none text-sm transition-all italic font-medium ${
+                                                            q.correctAnswers.includes(optIdx) ? 'border-[#FF007F]/50 text-white' : 'border-white/5 text-zinc-400 focus:border-zinc-500'
+                                                        }`}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <button 
+                                    type="button"
+                                    onClick={handleAddQuestion}
+                                    className="w-full h-20 border-2 border-dashed border-white/10 rounded-[2rem] text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em] hover:text-white hover:border-[#FF007F]/50 hover:bg-[#FF007F]/5 transition-all italic flex items-center justify-center gap-4"
+                                >
+                                    <span className="text-lg leading-none">+</span> Add Question {sections[activeSectionIdx].questions.length + 1}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Submit Button */}
+                <button type="submit" disabled={loading} 
+                        className="w-full h-20 bg-[#FF007F] text-white text-[11px] font-bold uppercase tracking-[0.4em] rounded-[1.8rem] flex items-center justify-center gap-6 hover:bg-white hover:text-black transition-all duration-500 active:scale-95 disabled:opacity-50 italic shadow-xl">
+                    {loading ? (
+                         <span className="flex items-center gap-4">
+                            <span className="w-3 h-3 bg-white rounded-full animate-bounce"></span>
+                            <span className="w-3 h-3 bg-white rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                            <span className="w-3 h-3 bg-white rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                         </span>
+                    ) : (
+                        "CREATE EXAM NOW"
+                    )}
+                </button>
+            </form>
         </div>
-
-        {/* Sections */}
-        <div className="glass-panel p-6 rounded-2xl">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">Sections & Questions</h3>
-            <button type="button" onClick={addSection} className="btn btn-sm btn-primary">
-              + Add Section
-            </button>
-          </div>
-
-          {/* Section Tabs */}
-          <div className="flex gap-2 mb-4 overflow-x-auto">
-            {sections.map((section, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setCurrentSectionIndex(idx)}
-                className={`btn btn-sm ${currentSectionIndex === idx ? 'btn-primary' : 'btn-ghost'}`}
-              >
-                {section.name} ({section.questions.length})
-              </button>
-            ))}
-          </div>
-
-          {/* Current Section */}
-          <div className="space-y-4">
-            <input 
-              type="text"
-              value={sections[currentSectionIndex].name}
-              onChange={(e) => {
-                const updated = [...sections];
-                updated[currentSectionIndex].name = e.target.value;
-                setSections(updated);
-              }}
-              className="input input-bordered w-full bg-slate-800/50 border-white/10 text-white"
-              placeholder="Section Name"
-            />
-
-            {/* Questions */}
-            {sections[currentSectionIndex].questions.map((q, qIdx) => (
-              <div key={qIdx} className="border border-white/10 rounded-lg p-4 bg-slate-800/30">
-                <div className="flex justify-between items-start mb-3">
-                  <span className="text-blue-400 font-semibold">Question {qIdx + 1}</span>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      const updated = [...sections];
-                      updated[currentSectionIndex].questions.splice(qIdx, 1);
-                      setSections(updated);
-                    }}
-                    className="btn btn-xs btn-error"
-                  >
-                    Delete
-                  </button>
-                </div>
-
-                <textarea
-                  value={q.questionText}
-                  onChange={(e) => updateQuestion(qIdx, 'questionText', e.target.value)}
-                  placeholder="Enter question text"
-                  className="textarea textarea-bordered w-full bg-slate-700/50 text-white mb-3"
-                  rows={2}
-                />
-
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <select
-                    value={q.questionType}
-                    onChange={(e) => updateQuestion(qIdx, 'questionType', e.target.value)}
-                    className="select select-bordered bg-slate-700/50 text-white"
-                  >
-                    <option value="single">Single Correct</option>
-                    <option value="multiple">Multiple Correct</option>
-                    <option value="numerical">Numerical</option>
-                  </select>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={q.marks}
-                      onChange={(e) => updateQuestion(qIdx, 'marks', Number(e.target.value))}
-                      placeholder="Marks"
-                      className="input input-bordered bg-slate-700/50 text-white w-1/2"
-                    />
-                    <input
-                      type="number"
-                      value={q.negativeMarks}
-                      onChange={(e) => updateQuestion(qIdx, 'negativeMarks', Number(e.target.value))}
-                      placeholder="Negative"
-                      className="input input-bordered bg-slate-700/50 text-white w-1/2"
-                    />
-                  </div>
-                </div>
-
-                {q.questionType !== 'numerical' && (
-                  <div className="space-y-2">
-                    {q.options.map((opt, optIdx) => (
-                      <div key={optIdx} className="flex gap-2 items-center">
-                        <input
-                          type={q.questionType === 'single' ? 'radio' : 'checkbox'}
-                          name={`correct-${qIdx}`}
-                          checked={q.correctAnswers.includes(optIdx)}
-                          onChange={(e) => {
-                            let newCorrect = [...q.correctAnswers];
-                            if (q.questionType === 'single') {
-                              newCorrect = e.target.checked ? [optIdx] : [];
-                            } else {
-                              if (e.target.checked) {
-                                newCorrect.push(optIdx);
-                              } else {
-                                newCorrect = newCorrect.filter(i => i !== optIdx);
-                              }
-                            }
-                            updateQuestion(qIdx, 'correctAnswers', newCorrect);
-                          }}
-                          className="radio radio-primary"
-                        />
-                        <input
-                          type="text"
-                          value={opt}
-                          onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
-                          placeholder={`Option ${optIdx + 1}`}
-                          className="input input-bordered flex-1 bg-slate-700/50 text-white"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            <button type="button" onClick={addQuestion} className="btn btn-outline btn-primary w-full">
-              + Add Question to {sections[currentSectionIndex].name}
-            </button>
-          </div>
-        </div>
-
-        <button type="submit" disabled={loading} className="btn btn-primary w-full">
-          {loading ? <span className="loading loading-spinner"></span> : 'Create Exam'}
-        </button>
-      </form>
-    </div>
-  );
+    );
 }

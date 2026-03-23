@@ -1,82 +1,62 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  /* Premium Dark Palette */
-  --background: #0B0E14; /* Deep, almost black blue */
-  --foreground: #E2E8F0; /* Soft white */
-  
-  --surface: #151923; /* Slightly lighter for cards */
-  --surface-highlight: #1E293B; /* Hover state */
-  
-  --primary: #3B82F6; /* Electric Blue */
-  --secondary: #A855F7; /* Vivid Purple */
-  --accent: #F43F5E; /* Rose pop */
-  
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-bg: rgba(255, 255, 255, 0.03);
+  --background: #000000;
+  --foreground: #ffffff;
+  --accent: #FF007F;
+  --accent-muted: #FF007F15;
+  --card-bg: #0A0A0A;
+  --card-border: #1F1F1F;
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-sans: 'Inter', sans-serif;
 }
 
-/* --- Utilities --- */
-
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+@layer base {
+  body {
+    @apply bg-black text-white antialiased selection:bg-[#FF007F] selection:text-white;
+    font-family: var(--font-sans);
+  }
 }
 
-.glass-panel-hover {
-  transition: all 0.3s ease;
+@layer components {
+  .btn-pink {
+    @apply flex items-center justify-center gap-3 px-10 h-16 bg-[#FF007F] text-white text-[11px] font-bold uppercase tracking-[0.4em] rounded-2xl hover:bg-white hover:text-black transition-all duration-500 shadow-[0_0_30px_-5px_#FF007F] active:scale-95 italic;
+  }
+
+  .card-cyber {
+    @apply bg-[#0A0A0A] border border-[#1F1F1F] rounded-[2.5rem] p-12 transition-all duration-500 hover:border-[#FF007F]/40 hover:shadow-[0_40px_100px_-20px_rgba(255,0,127,0.1)];
+  }
+
+  .input-cyber {
+    @apply w-full h-16 px-8 bg-[#050505] border border-[#1F1F1F] text-white text-[11px] font-bold uppercase tracking-[0.2em] rounded-2xl focus:border-[#FF007F] focus:shadow-[0_0_20px_-10px_#FF007F] transition-all outline-none placeholder:text-slate-700 italic;
+  }
 }
 
-.glass-panel-hover:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
-  transform: translateY(-2px);
+/* Custom Scrollbar for Cyber Theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #1F1F1F;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #FF007F;
 }
 
 .text-glow {
-  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
 }
 
-.bentogrid-wrapper {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .bentogrid-wrapper {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .bentogrid-wrapper {
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: minmax(150px, auto);
-  }
-}
-
-/* Animations */
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
+.border-glow {
+  box-shadow: 0 0 40px -10px rgba(255, 0, 127, 0.2);
 }

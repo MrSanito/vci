@@ -29,8 +29,8 @@ export interface IExamAttempt extends Document {
   currentSection: number;
   currentQuestion: number;
   
-  // Question states (Map of question number to state)
-  questionStates: Map<number, IQuestionState>;
+  // Question states (Map of string question index to state)
+  questionStates: Map<string, IQuestionState>;
   
   // Security tracking
   tabSwitchCount: number;

@@ -1,30 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from '@clerk/nextjs'
-  
+import Footer from "./components/Footer";
+import { ClerkProvider } from '@clerk/nextjs'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-heading",
   subsets: ["latin"],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "Vishal Computer Institute | Premium Education",
-  description: "Advanced courses in computer science and more.",
+  title: "Vishal Computer Institute | Premium Tech Education",
+  description: "Advanced courses in computer science, engineering, and digital arts.",
 };
 
 export default function RootLayout({
@@ -33,17 +28,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-        <ClerkProvider>
-
-    <html lang="en" data-theme="dark">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}>
-        <Navbar/>
-        <main className="flex-grow">
+    <ClerkProvider>
+      <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable}`}>
+        <body className="antialiased min-h-screen flex flex-col font-body bg-black">
+          <Navbar/>
+          <main className="flex-grow pt-24">
             {children}
-        </main>
-      </body>
-    </html>
-        </ClerkProvider>
-
+          </main>
+          <Footer />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
+

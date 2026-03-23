@@ -8,27 +8,34 @@ interface OurGroupCardProps {
 
 const OurGroupCard = ({ name, detail, avatar }: OurGroupCardProps) => {
   return (
-    <div className="glass-panel rounded-2xl p-6 text-center shadow-lg glass-panel-hover group relative overflow-hidden">
-        {/* Hover Highlight */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-
-      {/* Avatar */}
-      <div className="flex justify-center mb-5">
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-md opacity-30 group-hover:opacity-60 transition-opacity duration-300"></div>
+    <div className="relative flex flex-col items-start bg-white border border-slate-200 group/card transition-all duration-300 hover:bg-slate-900 cursor-pointer p-0 overflow-hidden">
+      {/* Avatar Partition: Subtle Grayscale */}
+      <div className="relative w-full aspect-square bg-slate-100 overflow-hidden border-b border-slate-200">
           <img
             src={avatar}
             alt={name}
-            className="w-24 h-24 rounded-full object-cover border-2 border-white/10 shadow-xl relative z-10 group-hover:border-white/30 transition-colors"
+            className="w-full h-full object-cover grayscale opacity-70 group-hover/card:grayscale-0 group-hover/card:opacity-100 transition-all duration-500 group-hover/card:scale-110"
           />
-        </div>
+          <div className="absolute top-4 right-4 w-10 h-10 bg-rose-600 text-white flex items-center justify-center font-semibold text-[10px] shadow-lg opacity-0 group-hover/card:opacity-100 transition-opacity">
+              VCI
+          </div>
       </div>
 
-      {/* Text */}
-      <div className="relative z-10">
-        <h2 className="font-bold text-lg text-white group-hover:text-blue-300 transition-colors">{name}</h2>
-        <p className="text-sm text-slate-400 mt-2 leading-relaxed">{detail}</p>
+      {/* Identity Label: Normal Weights */}
+      <div className="w-full p-6 flex flex-col items-start gap-4">
+        <h3 className="text-xl font-semibold text-slate-900 font-heading tracking-tight group-hover/card:text-white transition-colors">
+            {name}
+        </h3>
+        <span className="text-[10px] text-rose-600 font-semibold uppercase tracking-widest bg-rose-50 px-3 py-1.5 group-hover/card:bg-rose-600 group-hover/card:text-white transition-colors">
+            Registry Active
+        </span>
+        <p className="text-xs text-slate-500 leading-relaxed font-normal group-hover/card:text-slate-400 transition-colors mt-1">
+            {detail}
+        </p>
       </div>
+      
+      {/* Decorative Index: Subtle */}
+      <div className="absolute top-0 left-0 w-1 h-0 bg-rose-600 group-hover/card:h-full transition-all duration-500"></div>
     </div>
   );
 };

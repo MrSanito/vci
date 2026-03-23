@@ -34,49 +34,43 @@ export async function getStudentDashboardData() {
   const user = await client.users.getUser(userId);
   // @ts-ignore
   const userRole = user.publicMetadata?.role;
-  
-  // If admin, return demo data
-  if (userRole === 'admin') {
-    return {
-      student: {
-        name: user.firstName + ' ' + (user.lastName || ''),
-        email: user.emailAddresses[0].emailAddress,
-        rollNumber: 'ADMIN',
-        course: 'Administrator',
-        role: 'admin',
-        batch: 'N/A'
-      },
-      attempts: [],
-      results: [],
-      stats: {
-        totalExams: 0,
-        completedExams: 0,
-        pendingExams: 0,
-        inProgressExams: 0,
-        averageScore: 0
-      },
-      isAdmin: true
+  const isAdmin = userRole === 'admin';
+
+  let student: any;
+  let assignedExams: any[];
+
+  if (isAdmin) {
+    // Construct a virtual student profile for the admin so they can use the dashboard
+    student = {
+      name: user.firstName + ' ' + (user.lastName || ''),
+      email: user.emailAddresses[0].emailAddress,
+      rollNumber: 'ADMIN-PRO',
+      course: 'Internal Management',
+      role: 'admin',
+      batch: 'GLOBAL'
     };
-  }
-  
-  // Get student profile
-  const student = await Student.findOne({ clerkId: userId }).lean();
-  
-  if (!student) {
-    return null;
+
+    // Admins see ALL exams assigned to them (and they can take any exam)
+    assignedExams = await Exam.find({}).lean();
+  } else {
+    // Get student profile
+    student = await Student.findOne({ clerkId: userId }).lean();
+    
+    if (!student) {
+      return null;
+    }
+
+    // Get all exams assigned to this student
+    assignedExams = await Exam.find({
+      $or: [
+        { assignmentType: 'all' },
+        { assignmentType: 'course', assignedCourses: student.course },
+        { assignmentType: 'manual', assignedTo: userId }
+      ]
+    }).lean();
   }
 
-  // Get all exams assigned to this student
-  const now = new Date();
-  const assignedExams = await Exam.find({
-    $or: [
-      { assignmentType: 'all' },
-      { assignmentType: 'course', assignedCourses: student.course },
-      { assignmentType: 'manual', assignedTo: userId }
-    ]
-  }).lean();
-
-  // Get attempts
+  // Get attempts (both students and admins have attempts stored by clerkId)
   const allAttempts = await ExamAttempt.find({ studentId: userId }).lean();
   
   // Get results
@@ -98,12 +92,12 @@ export async function getStudentDashboardData() {
       status = attempt.submitted ? 'completed' : 'in-progress';
     }
     return {
-      _id: attempt ? attempt.examId.toString() : exam._id.toString(), // The link points to /exam/[id], which expects examId
+      _id: exam._id.toString(), // Always route via Exam ID for the instructions page
       examId: {
+        _id: exam._id,
         title: exam.title,
         description: exam.description,
         duration: exam.totalDuration,
-        totalMarks: exam.totalMarks
       },
       status
     };
@@ -111,10 +105,10 @@ export async function getStudentDashboardData() {
 
   const resultsData = allResults.map(r => ({
     _id: r._id.toString(),
-    attemptId: r.attemptId.toString(),
+    attemptId: r.attemptId ? r.attemptId.toString() : null,
     examId: {
-      title: (r.examId as any).title,
-      totalMarks: (r.examId as any).totalMarks
+      title: (r.examId as any)?.title || 'Unknown Exam',
+      totalMarks: (r.examId as any)?.totalMarks || 0
     },
     passed: r.passed,
     score: r.totalScore,
@@ -137,6 +131,6 @@ export async function getStudentDashboardData() {
     attempts: attemptsData,
     results: resultsData,
     stats,
-    isAdmin: false
+    isAdmin: isAdmin
   }));
 }
