@@ -28,7 +28,7 @@ const Section1 = () => {
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF007F] rounded-full blur-[150px] opacity-[0.05] -mr-48 -mt-48"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#FF007F] rounded-full blur-[150px] opacity-[0.05] -ml-48 -mb-48"></div>
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">    
         <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-12">
             <div className="max-w-3xl">
                 <span className="text-[#FF007F] font-bold uppercase tracking-[0.6em] text-[10px] mb-8 block italic animate-pulse">Our Simple Workflow</span>

@@ -272,7 +272,6 @@ export default function CreateExamForm() {
                                             <div className="w-10 h-10 bg-white/5 text-zinc-500 font-bold rounded-xl flex items-center justify-center italic shrink-0">Q{qIdx + 1}</div>
                                             <div className="flex-1">
                                                <input 
-                                                  disabled // Form data cannot bind well to deeply nested dynamically rendered nested arrays without custom parsing. We use React state instead. Wait, they don't have name attributes, so ignoring is fine.
                                                   value={q.questionText}
                                                   onChange={(e) => handleQuestionChange(qIdx, 'questionText', e.target.value)}
                                                   placeholder="Type your question here..."
